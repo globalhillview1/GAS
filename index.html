@@ -1,17 +1,20 @@
 <!-- Single-file, no-build index.html for GitHub Pages
-     ✅ Uses React 18 UMD + Babel Standalone (runs directly on GH Pages)
+     ✅ React 18 UMD + Babel Standalone (runs directly on GH Pages)
      ✅ No imports/TypeScript/bundler needed
      ✅ Connects to your Google Apps Script backend
      ✅ Robust fetch with timeout+retries, clear errors, and Demo Mode fallback
-     ✅ FIX: Added Babel presets (env,react) to prevent "Unexpected token (1:0)" JSX parse error
-     ✅ TESTS: Lightweight self-tests run on load; results shown in Diagnostics
+     ✅ FIX: Babel presets (env,react) prevent JSX parse errors
+     ✅ Admin vs User roles; Payments visible to Admin only
+     ✅ Pages map to sheet tabs: Issues, Transactions, OpeningBalances, ChartOfAccounts, Voters, Directory, Notices
+     ✅ "Back" button on sub-pages
+     ✅ Currency: INR (₹)
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SocietyGuard — Sheets-backed Portal</title>
+  <title>Global Hillview, Sec-11, Sohna, Gurgaon — Society Portal</title>
   <meta name="description" content="Community management web app powered by Google Sheets (GAS backend)." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E" />
 
@@ -55,34 +58,51 @@
     // =====================
     // Config & Utilities
     // =====================
+    const SOCIETY_NAME = 'Global Hillview, Sec-11, Sohna, Gurgaon';
+    document.title = SOCIETY_NAME + ' — Society Portal';
+
     const params = new URLSearchParams(location.search);
     const URL_OVERRIDE = params.get('gas');
     const FORCE_DEMO   = params.get('demo') === '1' || params.get('offline') === '1';
     const BASE_URL = (URL_OVERRIDE || (window.ENV_GAS_URL || '')).trim();
 
+    const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+
     const DEMO = {
       Directory: [
-        { Serial: 1, Name: 'Ayesha Khan',  Flat: 'A-302', Phone: '+49 160 555 0001', Email: 'ayesha@example.com' },
-        { Serial: 2, Name: 'Rohan Mehta',  Flat: 'B-1204', Phone: '+49 160 555 0002', Email: 'rohan@example.com' },
-        { Serial: 3, Name: 'Sofia Keller', Flat: 'C-803', Phone: '+49 160 555 0003', Email: 'sofia@example.com' }
+        { Serial: 1, Name: 'Ayesha Khan',  Flat: 'A-302', Phone: '+91 98765 00001', Email: 'ayesha@example.com' },
+        { Serial: 2, Name: 'Rohan Mehta',  Flat: 'B-1204', Phone: '+91 98765 00002', Email: 'rohan@example.com' },
+        { Serial: 3, Name: 'Sofia Keller', Flat: 'C-803', Phone: '+91 98765 00003', Email: 'sofia@example.com' }
       ],
       Notices: [
         { 'Serial Number': 1, Subject: 'Water shutdown on Friday', Date: '2025-01-15', Notice: 'Maintenance from 10:00–12:00 in Block B.' },
         { 'Serial Number': 2, Subject: 'Diwali Fest – Community Hall', Date: '2025-01-16', Notice: 'Potluck & games this Saturday 18:30.' }
       ],
       Issues: [
-        { 'Tracking ID': 'demo-101', 'Date and Time Raised': '2025-01-16T09:00:00Z', Tower: '', Flat: 'B-1204', Title: 'Lift not working', Category: 'Infrastructure', Description: 'Lift stuck at floor 7.', Status: 'Open' },
-        { 'Tracking ID': 'demo-102', 'Date and Time Raised': '2025-01-16T09:15:00Z', Tower: '', Flat: 'A-302', Title: 'Water leakage', Category: 'Plumbing', Description: 'Leak in kitchen sink.', Status: 'In Progress' }
+        { 'Tracking ID': 'demo-101', 'Date and Time Raised': '2025-01-16T09:00:00Z', Tower: 'T1', Flat: '1204', Title: 'Lift not working', Category: 'Infrastructure', Description: 'Lift stuck at floor 7.', Status: 'Open' },
+        { 'Tracking ID': 'demo-102', 'Date and Time Raised': '2025-01-16T09:15:00Z', Tower: 'T5', Flat: '505', Title: 'Water leakage', Category: 'Plumbing', Description: 'Leak in kitchen sink.', Status: 'In Progress' }
       ],
       Documents: [
         { 'Serial Number': 1, Subject: 'AGM Minutes', Date: '2025-01-10', Media: 'PDF', Link: '#', Category: 'Governance' }
       ],
       Transactions: [
-        { Date: '2025-01-01', Type: 'Credit', Category: 'Maintenance', 'Sub-category': 'Monthly', Amount: 120 },
-        { Date: '2025-01-01', Type: 'Debit',  Category: 'Clubhouse',  'Sub-category': 'Snacks',  Amount: 25 }
+        { Date: '2025-01-01', Type: 'Credit', Category: 'Maintenance', 'Sub-category': 'Monthly', Amount: 1200 },
+        { Date: '2025-01-01', Type: 'Debit',  Category: 'Clubhouse',  'Sub-category': 'Snacks',  Amount: 250 }
+      ],
+      OpeningBalances: [
+        { Account: 'Maintenance Fund', Amount: 100000 },
+        { Account: 'Corpus Fund', Amount: 250000 }
+      ],
+      ChartOfAccounts: [
+        { Code: '1001', Name: 'Cash', Type: 'Asset' },
+        { Code: '4001', Name: 'Maintenance Income', Type: 'Income' }
       ],
       Voters: [
-        { 'Tower No.': 'A', 'Flat No.': '302', 'First Owner Name': 'Ayesha Khan', 'Second Owner Name': '' }
+        { 'Tower No.': 'T1', 'Flat No.': '1204', 'First Owner Name': 'Mrs. SUNITA CHAWLA', 'Second Owner Name': '' }
+      ],
+      Users: [
+        { Username: 'admin', Password: 'admin', Role: 'admin', Active: 'Yes' },
+        { Username: 'resident', Password: 'resident', Role: 'user', Active: 'Yes' }
       ]
     };
 
@@ -143,6 +163,16 @@
 
     function Section({ children }) { return <section className="grid gap-4">{children}</section>; }
 
+    // Reusable Back bar
+    function BackBar({ title, onBack }) {
+      return (
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary" onClick={onBack}>← Back</button>
+          <div className="text-sm text-gray-500">{title}</div>
+        </div>
+      );
+    }
+
     // =====================
     // Pages
     // =====================
@@ -155,7 +185,7 @@
           <div className="grid gap-4 md:grid-cols-3">
             <Stat label="Residents" value={residents.length} />
             <Stat label="Open issues" value={openTickets} />
-            <Stat label="Net collected" value={`€ ${(totalPaid-totalDue).toFixed(2)}`} />
+            <Stat label="Net collected" value={INR.format(totalPaid-totalDue)} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="card p-5">
@@ -193,7 +223,7 @@
       );
     }
 
-    function Notices({ notices, onCreate, writable }) {
+    function Notices({ notices, onCreate, writable, onBack }) {
       const [subject, setSubject] = useState('');
       const [notice, setNotice]   = useState('');
       async function submit(){
@@ -204,6 +234,7 @@
       }
       return (
         <Section>
+          <BackBar title="Notices" onBack={onBack} />
           {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
           <div className="card p-5">
             <div className="font-medium">Post notice</div>
@@ -236,7 +267,7 @@
       );
     }
 
-    function Issues({ tickets, onCreate, writable }) {
+    function Issues({ tickets, onCreate, writable, onBack }) {
       const [title, setTitle] = useState('');
       const [category, setCategory] = useState('Infrastructure');
       const [flat, setFlat] = useState('');
@@ -252,6 +283,7 @@
 
       return (
         <Section>
+          <BackBar title="Tickets (Issues)" onBack={onBack} />
           {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
           <div className="card p-5">
             <div className="font-medium">Raise an issue</div>
@@ -298,12 +330,13 @@
       );
     }
 
-    function Directory({ residents }) {
+    function Directory({ residents, onBack }) {
       return (
         <Section>
+          <BackBar title="Directory" onBack={onBack} />
           <div className="card p-5">
             <div className="font-medium">Residents directory</div>
-            <div className="text-xs text-gray-500 mb-4">From the "Directory" sheet (read-only demo)</div>
+            <div className="text-xs text-gray-500 mb-4">From the "Directory" sheet</div>
             <div className="grid gap-3">
               {residents.map(r => (
                 <div key={r.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 border rounded-2xl p-4">
@@ -322,29 +355,31 @@
       );
     }
 
-    function Payments({ transactions }) {
+    function Payments({ transactions, canView, onBack }) {
       const totals = useMemo(()=>{
         const paid = transactions.filter(t=>String(t.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
         const due  = transactions.filter(t=>String(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
         return { paid, due };
       }, [transactions]);
+      if(!canView) return (<Section><BackBar title="Payments (Transactions)" onBack={onBack} /><Banner kind="error">Access restricted. Payments are visible to Admin only.</Banner></Section>);
       return (
         <Section>
+          <BackBar title="Payments (Transactions)" onBack={onBack} />
           <div className="grid gap-4 md:grid-cols-2">
-            <Stat label="Collected (credits)" value={`€ ${totals.paid.toFixed(2)}`} />
-            <Stat label="Debits" value={`€ ${totals.due.toFixed(2)}`} />
+            <Stat label="Collected (credits)" value={INR.format(totals.paid)} />
+            <Stat label="Debits" value={INR.format(totals.due)} />
           </div>
           <div className="card p-5 mt-2">
             <div className="font-medium">Transactions</div>
             <div className="text-xs text-gray-500 mb-3">From the "Transactions" sheet</div>
             <div className="grid gap-2">
               {transactions.map((p,i)=> (
-                <div key={i} className="grid md:grid-cols-6 gap-2 items-center border rounded-XL p-3 text-sm">
+                <div key={i} className="grid md:grid-cols-6 gap-2 items-center border rounded-2xl p-3 text-sm">
                   <div className="font-medium md:col-span-2">{p['Date']}</div>
                   <div>{p['Type']}</div>
                   <div>{p['Category']}</div>
                   <div>{p['Sub-category']}</div>
-                  <div className="md:text-right">€ {Number(p['Amount']||0).toFixed(2)}</div>
+                  <div className="md:text-right">{INR.format(Number(p['Amount']||0))}</div>
                 </div>
               ))}
             </div>
@@ -353,9 +388,48 @@
       );
     }
 
-    function Documents({ documents }) {
+    function OpeningBalances({ rows, onBack }){
       return (
         <Section>
+          <BackBar title="Opening Balances" onBack={onBack} />
+          <div className="card p-5">
+            <div className="grid gap-2">
+              {rows.map((r,i)=> (
+                <div key={i} className="flex items-center justify-between border rounded-2xl p-3">
+                  <div className="font-medium">{r['Account']||r['Account Name']||r['Name']}</div>
+                  <div className="text-sm">{INR.format(Number(r['Amount']||r['Opening Balance']||0))}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    function ChartOfAccounts({ rows, onBack }){
+      return (
+        <Section>
+          <BackBar title="Chart of Accounts" onBack={onBack} />
+          <div className="card p-5">
+            <div className="grid gap-2">
+              {rows.map((r,i)=> (
+                <div key={i} className="grid md:grid-cols-4 gap-2 items-center border rounded-2xl p-3 text-sm">
+                  <div className="font-medium">{r['Code']||r['Account Code']}</div>
+                  <div>{r['Name']||r['Account Name']}</div>
+                  <div>{r['Type']||r['Account Type']}</div>
+                  <div>{r['Parent']||''}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    function Documents({ documents, onBack }) {
+      return (
+        <Section>
+          <BackBar title="Documents" onBack={onBack} />
           <div className="card p-5">
             <div className="font-medium">Documents</div>
             <div className="text-xs text-gray-500 mb-3">From the "Documents" sheet</div>
@@ -375,9 +449,10 @@
       );
     }
 
-    function Voters({ voters }) {
+    function Voters({ voters, onBack }) {
       return (
         <Section>
+          <BackBar title="Voters" onBack={onBack} />
           <div className="card p-5">
             <div className="font-medium">Voters list</div>
             <div className="text-xs text-gray-500 mb-3">From the "Voters" sheet</div>
@@ -390,6 +465,51 @@
               ))}
             </div>
           </div>
+        </Section>
+      );
+    }
+
+    function Admin({ users, session, onLogin, onLogout, onBack }){
+      const [u, setU] = useState('');
+      const [p, setP] = useState('');
+      const me = session || { role:'user' };
+      const tryLogin = () => onLogin(u,p);
+      return (
+        <Section>
+          <BackBar title="Admin Portal" onBack={onBack} />
+          {me.role!=='admin' && (
+            <div className="card p-5">
+              <div className="font-medium mb-2">Login (sheet-backed)</div>
+              <div className="grid md:grid-cols-3 gap-2">
+                <input className="border rounded-xl p-2" placeholder="Username" value={u} onChange={e=>setU(e.target.value)} />
+                <input className="border rounded-xl p-2" placeholder="Password" type="password" value={p} onChange={e=>setP(e.target.value)} />
+                <button className="btn" onClick={tryLogin}>Login</button>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">Hint (demo): admin/admin</div>
+            </div>
+          )}
+          {me.role==='admin' && (
+            <>
+              <div className="flex items-center justify-between card p-4">
+                <div>Signed in as <span className="font-medium">{me.username}</span> (<span className="badge">admin</span>)</div>
+                <button className="btn-secondary" onClick={onLogout}>Logout</button>
+              </div>
+              <div className="card p-5 mt-3">
+                <div className="font-medium mb-2">Users</div>
+                <div className="grid gap-2">
+                  {users.map((x,i)=> (
+                    <div key={i} className="grid md:grid-cols-5 gap-2 items-center border rounded-2xl p-3 text-sm">
+                      <div className="font-medium">{x['Username']||x['Email']}</div>
+                      <div>{x['Role']||'user'}</div>
+                      <div>{x['Active']||'Yes'}</div>
+                      <div>{x['CreatedAt']||''}</div>
+                      <div className="text-xs text-gray-500">(editing requires GAS update)</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </Section>
       );
     }
@@ -407,8 +527,8 @@
       t('payments totals', ()=>{
         const paid = DEMO.Transactions.filter(x=>x.Type==='Credit').reduce((a,b)=>a+b.Amount,0);
         const due  = DEMO.Transactions.filter(x=>x.Type==='Debit').reduce((a,b)=>a+b.Amount,0);
-        if (paid !== 120) throw new Error('paid mismatch');
-        if (due  !== 25)  throw new Error('due mismatch');
+        if (paid !== 1200) throw new Error('paid mismatch');
+        if (due  !== 250)  throw new Error('due mismatch');
       });
       // Test: residents mapping
       t('directory mapping', ()=>{
@@ -429,6 +549,7 @@
       return (
         <div className="card p-4 text-sm">
           <div className="font-medium mb-1">Diagnostics</div>
+          <div>Society: <span className="mono">{SOCIETY_NAME}</span></div>
           <div>Mode: <span className="mono">{mode}</span></div>
           <div>BASE_URL: <code className="break-all mono">{baseUrl || '(empty)'}</code></div>
           {lastError && <div className="text-red-600 mt-1">Last error: {String(lastError)}</div>}
@@ -463,19 +584,26 @@
       const [transactions, setTransactions] = useState([]);
       const [documents, setDocuments] = useState([]);
       const [voters, setVoters] = useState([]);
+      const [openingBalances, setOpeningBalances] = useState([]);
+      const [chart, setChart] = useState([]);
+      const [users, setUsers] = useState([]);
+      const [session, setSession] = useState({ username: 'guest', role: (new URLSearchParams(location.search).get('role')) || 'user' });
       const [search, setSearch] = useState('');
 
       async function loadAll() {
         if (FORCE_DEMO || !BASE_URL) { useDemo(); return; }
         try {
           setLoading(true); setLastError('');
-          const [dir, nts, iss, txs, docs, vts] = await Promise.all([
+          const [dir, nts, iss, txs, docs, vts, obs, coa, us] = await Promise.all([
             api('listDirectory', 'GET', null, 1),
             api('listNotices',   'GET', null, 1),
             api('listIssues',    'GET', null, 1),
             api('listTransactions','GET',null,1),
             api('listDocuments', 'GET', null, 1),
             api('listVoters',    'GET', null, 1),
+            api('listOpeningBalances','GET',null,1).catch(()=>({rows:DEMO.OpeningBalances})),
+            api('listChartOfAccounts','GET',null,1).catch(()=>({rows:DEMO.ChartOfAccounts})),
+            api('listUsers','GET',null,1).catch(()=>({rows:DEMO.Users})),
           ]);
           setDirectory(dir?.rows||[]);
           setNotices(nts?.rows||[]);
@@ -483,6 +611,9 @@
           setTransactions(txs?.rows||[]);
           setDocuments(docs?.rows||[]);
           setVoters(vts?.rows||[]);
+          setOpeningBalances(obs?.rows||[]);
+          setChart(coa?.rows||[]);
+          setUsers(us?.rows||[]);
           setMode('LIVE');
         } catch (err) {
           setLastError(err);
@@ -497,10 +628,21 @@
         setTransactions(DEMO.Transactions);
         setDocuments(DEMO.Documents);
         setVoters(DEMO.Voters);
+        setOpeningBalances(DEMO.OpeningBalances);
+        setChart(DEMO.ChartOfAccounts);
+        setUsers(DEMO.Users);
         setMode('DEMO');
       }
 
       useEffect(()=>{ loadAll(); },[]);
+
+      function handleLogin(username, password){
+        const pool = users && users.length ? users : DEMO.Users;
+        const match = pool.find(u => (u.Username||'').toLowerCase()===String(username).toLowerCase() && String(u.Password||'')===String(password) && String(u.Active||'Yes').toLowerCase().startsWith('y'));
+        if(match){ setSession({ username: match.Username||username, role: (match.Role||'user').toLowerCase() }); alert('Logged in as '+(match.Username||username)); }
+        else { alert('Invalid credentials'); }
+      }
+      function handleLogout(){ setSession({ username:'guest', role:'user' }); }
 
       const residents = useMemo(()=> directory.map(r=>({
         id: r.Serial ?? r.id ?? `${r.Name}-${r.Flat}`,
@@ -516,13 +658,14 @@
       }, [search, residents]);
 
       const writable = mode === 'LIVE';
+      const canSeePayments = session.role === 'admin';
 
       return (
         <div className="max-w-7xl mx-auto p-4">
           {/* Topbar */}
           <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
             <div className="h-14 flex items-center justify-between">
-              <div className="font-semibold text-lg">🏡 SocietyGuard</div>
+              <div className="font-semibold text-lg">🏡 {SOCIETY_NAME}</div>
               <div className="hidden md:flex gap-2">
                 <input className="border rounded-xl px-3 py-2 w-80" placeholder="Search directory…" value={search} onChange={e=>setSearch(e.target.value)} />
                 <button className="btn-secondary">Search</button>
@@ -534,7 +677,7 @@
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             {/* Sidebar */}
             <aside className="grid gap-2">
-              {['dashboard','notices','tickets','directory','payments','documents','voters'].map(tab=> (
+              {['dashboard','notices','tickets','directory','payments','openingBalances','chartOfAccounts','documents','voters','admin'].map(tab=> (
                 <NavItem key={tab} label={tab.charAt(0).toUpperCase()+tab.slice(1)} active={view===tab} onClick={()=>setView(tab)} />
               ))}
               <Diagnostics baseUrl={BASE_URL} lastError={lastError} mode={mode} rerun={loadAll} tests={tests} />
@@ -545,12 +688,15 @@
               {loading && <div className="text-sm text-gray-500">Loading from Google Sheets…</div>}
               {mode==='DEMO' && <Banner kind="error">Failed to reach backend. Running in Demo Mode so you can still try the app.</Banner>}
               {view==='dashboard' && <Dashboard residents={residents} tickets={tickets} transactions={transactions} notices={notices} />}
-              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){ alert('Demo Mode: write disabled'); return n; } const created = await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} />}
-              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){ alert('Demo Mode: write disabled'); return t; } const created = await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} />}
-              {view==='directory' && <Directory residents={filteredResidents} />}
-              {view==='payments' && <Payments transactions={transactions} />}
-              {view==='documents' && <Documents documents={documents} />}
-              {view==='voters' && <Voters voters={voters} />}
+              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){ alert('Demo Mode: write disabled'); return n; } const created = await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} onBack={()=>setView('dashboard')} />}
+              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){ alert('Demo Mode: write disabled'); return t; } const created = await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} onBack={()=>setView('dashboard')} />}
+              {view==='directory' && <Directory residents={filteredResidents} onBack={()=>setView('dashboard')} />}
+              {view==='payments' && <Payments transactions={transactions} canView={canSeePayments} onBack={()=>setView('dashboard')} />}
+              {view==='openingBalances' && <OpeningBalances rows={openingBalances} onBack={()=>setView('dashboard')} />}
+              {view==='chartOfAccounts' && <ChartOfAccounts rows={chart} onBack={()=>setView('dashboard')} />}
+              {view==='documents' && <Documents documents={documents} onBack={()=>setView('dashboard')} />}
+              {view==='voters' && <Voters voters={voters} onBack={()=>setView('dashboard')} />}
+              {view==='admin' && <Admin users={users} session={session} onLogin={handleLogin} onLogout={handleLogout} onBack={()=>setView('dashboard')} />}
             </main>
           </div>
         </div>
