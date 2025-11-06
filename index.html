@@ -1,244 +1,558 @@
+<!-- index.html for SocietyGuard React app hosted on GitHub Pages -->
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAS Secured Frontend with RBAC</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body class="p-4 md:p-8">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SocietyGuard - Community Management Portal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="description" content="A free community management web app powered by Google Sheets backend (like MyGate/NoBrokerHood)." />
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
-        <h1 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">Secured GAS App (RBAC Demo)</h1>
-
-        <div id="auth-section" class="mb-6 p-4 bg-gray-100 rounded-xl shadow-inner">
-            <h2 class="text-xl font-bold mb-3 text-gray-700">User Authentication (Role Check)</h2>
-            <p class="text-sm text-gray-600 mb-3">Login to enable the Admin Panel. Use **admin** and its hash from the Users sheet. The provided hash is for demonstration purposes.</p>
-            <div id="login-form" class="flex flex-wrap gap-2 items-center">
-                <input type="text" id="username" value="admin" placeholder="Username (e.g., admin)" class="p-2 border rounded-lg flex-1 min-w-[150px] focus:ring-indigo-500 focus:border-indigo-500">
-                <input type="password" id="passwordHash" value="f88d7ddc8832d21d827b2c52eb1403b79376769855ac27c4ffede67d9d0c0012" placeholder="Password Hash" class="p-2 border rounded-lg flex-1 min-w-[250px] focus:ring-indigo-500 focus:border-indigo-500">
-                <button onclick="login()" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-150">Login</button>
-            </div>
-            <div id="user-status" class="mt-3 font-medium">Loading user data...</div>
-        </div>
-
-        <div id="admin-panel" class="hidden mb-6 p-6 bg-red-50 border-2 border-red-200 rounded-xl">
-            <h2 class="text-xl font-bold mb-4 text-red-700">Admin Panel: Add Transaction (WRITE Test)</h2>
-            <p class="text-sm text-red-600 mb-4">The backend will **reject** this POST request unless your determined role is 'admin'.</p>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                <input type="date" id="t-date" value="2025-11-06" class="p-2 border rounded-lg" required>
-                <input type="text" id="t-type" value="Expense" placeholder="Type (Income/Expense)" class="p-2 border rounded-lg" required>
-                <input type="text" id="t-category" value="Utilities" placeholder="Category" class="p-2 border rounded-lg" required>
-                <input type="number" id="t-amount" value="15000" placeholder="Amount" class="p-2 border rounded-lg" required>
-                <input type="text" id="t-party" value="Admin Test Vendor" placeholder="Party" class="p-2 border rounded-lg col-span-2" required>
-            </div>
-            <button onclick="addTransaction()" class="px-6 py-2 w-full bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 transition duration-150 font-semibold">
-                Add New Transaction (POST)
-            </button>
-            <div id="add-status" class="mt-3 p-2 text-sm font-medium"></div>
-        </div>
-        <div class="mt-8">
-            <h2 class="text-xl font-bold mb-3 text-gray-800">Data Viewer (READ Test)</h2>
-            <div class="flex flex-wrap gap-4 mb-6">
-                <button onclick="loadData('transactions')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-150">Load Transactions</button>
-                <button onclick="loadData('users')" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition duration-150">Load Users</button>
-                <button onclick="loadData('issues')" class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700 transition duration-150">Load Issues</button>
-            </div>
-        </div>
-
-        <div id="read-status" class="mb-4 p-3 bg-blue-100 border-l-4 border-blue-500 text-blue-800 rounded-md">
-            Click a button to load data...
-        </div>
-
-        <div id="data-container" class="bg-gray-50 p-4 rounded-lg overflow-x-auto text-sm">
-            <pre class="whitespace-pre-wrap text-gray-700" id="data-output">No data loaded.</pre>
-        </div>
-    </div>
-
+    <!-- Environment variable for Google Apps Script endpoint -->
     <script>
-        // --- REQUIRED DATA CONFIGURATION ---
-        // 1. PASTE THE URL you received after deploying your Google Apps Script as a Web App (Exec link).
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec';
-        // 2. PASTE ONE of the secret keys defined in the ALLOWED_API_KEYS array in your Code.gs file.
-        const CLIENT_API_KEY = 'gass-app-1A7F-SECRET-KEY-2025';
-        // -----------------------------------
-
-        let ALL_USERS = [];
-        let CURRENT_USER_ROLE = null;
-
-        const userStatusEl = document.getElementById('user-status');
-        const loginFormEl = document.getElementById('login-form');
-        const adminPanelEl = document.getElementById('admin-panel');
-        const readStatusEl = document.getElementById('read-status');
-        const addStatusEl = document.getElementById('add-status');
-        const dataOutputEl = document.getElementById('data-output');
-
-        // --- AUTHENTICATION & ROLE CHECK ---
-
-        async function fetchAllUsers() {
-            // Load user data to enable client-side login check
-            userStatusEl.textContent = 'Fetching user list from sheet...';
-            try {
-                const url = `${GAS_WEB_APP_URL}?sheet=users&apiKey=${CLIENT_API_KEY}`;
-                const response = await fetch(url);
-                const result = await response.json();
-
-                if (result.ok) {
-                    ALL_USERS = result.data;
-                    userStatusEl.textContent = 'Ready. Please enter your credentials and click Login.';
-                } else {
-                    ALL_USERS = []; // Clear users on error
-                    userStatusEl.textContent = `Error loading users: ${result.error}`;
-                    console.error('Failed to load user data:', result.error);
-                }
-            } catch (error) {
-                userStatusEl.textContent = `Connection Error. Check GAS URL.`;
-                console.error('Error fetching user list:', error);
-            }
-        }
-
-        function login() {
-            const username = document.getElementById('username').value;
-            const passwordHash = document.getElementById('passwordHash').value;
-
-            if (ALL_USERS.length === 0) {
-                 userStatusEl.textContent = 'User data not loaded. Please wait or check connection.';
-                 return;
-            }
-
-            // Client-side authentication lookup
-            const user = ALL_USERS.find(u =>
-                u.username === username && u.passwordHash === passwordHash
-            );
-
-            if (user) {
-                CURRENT_USER_ROLE = user.role.toLowerCase();
-                userStatusEl.innerHTML = `Logged in as: <span class="font-bold text-green-700">${username}</span> (Role: <span class="text-indigo-600">${CURRENT_USER_ROLE}</span>)`;
-
-                // Show/Hide Admin Panel based on role
-                if (CURRENT_USER_ROLE === 'admin') {
-                    adminPanelEl.classList.remove('hidden');
-                } else {
-                    adminPanelEl.classList.add('hidden');
-                }
-                document.getElementById('auth-section').classList.add('hidden'); // Hide the entire auth section after successful login
-
-            } else {
-                CURRENT_USER_ROLE = null;
-                userStatusEl.textContent = 'Login Failed: Invalid credentials or user not found.';
-                adminPanelEl.classList.add('hidden');
-            }
-        }
-
-        // --- WRITE OPERATION (Admin Only) ---
-
-        async function addTransaction() {
-            if (CURRENT_USER_ROLE !== 'admin') {
-                addStatusEl.textContent = 'ERROR: You must be logged in as an admin to add data.';
-                addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
-                return;
-            }
-
-            // Gather data for the new row. Column order must match your 'Transactions' sheet:
-            // Date,Type,Category,Sub-category,Amount,Party,Notes,Cost Center,Payment Mode,Ref/Invoice,Attachment URL,Cleared?
-            const newRowData = [
-                document.getElementById('t-date').value,
-                document.getElementById('t-type').value,
-                document.getElementById('t-category').value,
-                'WEB_ENTRY_N/A', // Sub-category placeholder (4th column)
-                document.getElementById('t-amount').value,
-                document.getElementById('t-party').value,
-                'Added by Admin via Web Interface', // Notes
-                'WEB_ENTRY', // Cost Center
-                'WEB_PAYMENT', // Payment Mode
-                'WEB-' + Date.now(), // Ref/Invoice
-                '', // Attachment URL
-                'TRUE' // Cleared?
-            ];
-
-            addStatusEl.textContent = 'Sending POST request...';
-            addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-yellow-200 text-yellow-800 rounded';
-
-            try {
-                const payload = {
-                    apiKey: CLIENT_API_KEY,
-                    sheet: 'transactions',
-                    role: CURRENT_USER_ROLE, // This is checked by the backend
-                    data: newRowData
-                };
-
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-
-                if (result.ok) {
-                    addStatusEl.textContent = `SUCCESS: Transaction Added! Row: ${JSON.stringify(result.newRow)}`;
-                    addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-green-200 text-green-800 rounded';
-                    loadData('transactions');
-                } else {
-                    addStatusEl.textContent = `FAILED (Backend Check): ${result.error}`;
-                    addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
-                }
-
-            } catch (error) {
-                addStatusEl.textContent = `FETCH ERROR: ${error.message}`;
-                addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
-            }
-        }
-
-        // --- READ OPERATION ---
-
-        async function loadData(sheetKey) {
-            if (GAS_WEB_APP_URL === 'PASTE_YOUR_DEPLOYED_GAS_URL_HERE') {
-                readStatusEl.textContent = 'ERROR: Please configure the GAS_WEB_APP_URL.';
-                return;
-            }
-
-            readStatusEl.textContent = `Loading data from the '${sheetKey}' sheet...`;
-            dataOutputEl.textContent = 'Loading...';
-
-            try {
-                const url = `${GAS_WEB_APP_URL}?sheet=${sheetKey}&apiKey=${CLIENT_API_KEY}`;
-
-                const response = await fetch(url);
-                const result = await response.json();
-
-                if (result.ok) {
-                    readStatusEl.textContent = `Successfully loaded ${result.data.length} records from '${sheetKey}'.`;
-                    dataOutputEl.textContent = JSON.stringify(result.data, null, 2);
-                } else {
-                    readStatusEl.textContent = `API Error: ${result.error}`;
-                    dataOutputEl.textContent = 'Failed to load data.';
-                }
-
-            } catch (error) {
-                readStatusEl.textContent = `Fetch Failed. Check your GAS URL, deployment, and security settings. Error: ${error.message}`;
-                dataOutputEl.textContent = 'Connection error.';
-            }
-        }
-
-        // --- Initialization ---
-        window.onload = function () {
-            // Check for configuration first
-            if (GAS_WEB_APP_URL === 'PASTE_YOUR_DEPLOYED_GAS_URL_HERE') {
-                 userStatusEl.innerHTML = '<span class="text-red-600 font-bold">CONFIG ERROR:</span> Update GAS_WEB_APP_URL and CLIENT_API_KEY in the script.';
-                 return;
-            }
-
-            // Pre-load user list for client-side login
-            fetchAllUsers();
-        };
-
+      window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
     </script>
-</body>
+
+    <!-- TailwindCSS CDN (for static GH Pages build) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              background: '#f9fafb',
+              foreground: '#111827',
+              muted: '#e5e7eb'
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-background text-foreground">
+    <div id="root"></div>
+
+    <!-- React + Vite build output or bundled JS -->
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Offline notice -->
+    <noscript>
+      <div style="padding: 2rem; text-align: center;">
+        <h2>⚠️ JavaScript Disabled</h2>
+        <p>This app requires JavaScript to run. Please enable it in your browser settings.</p>
+      </div>
+    </noscript>
+  </body>
 </html>
-```eof
+
+import React, { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Home, Users, Megaphone, Shield, HandCoins, Ticket, QrCode, Plus, Search, CheckCircle2, XCircle, Loader2, Phone, Mail, Menu, FileText, FolderOpen, ListChecks } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+
+/**
+ * BACKEND: Google Apps Script (GAS) + Google Sheets
+ * -------------------------------------------------
+ * 1) Import your Excel file to Google Drive and open it as Google Sheets.
+ *    Keep tab names exactly as: Issues, Directory, Voters, Notices, Documents, Transactions, OpeningBalances, ChartOfAccounts, Users
+ * 2) Deploy the Apps Script from the snippet provided in chat and paste the Web App URL below.
+ * 3) Host this React bundle on GitHub Pages — the app will call your GAS endpoints (free tier).
+ */
+
+// Paste your deployed GAS Web App URL here, e.g. "https://script.google.com/macros/s/AKfycb.../exec"
+const BASE_URL = (globalThis as any).ENV_GAS_URL || "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec"; // set at runtime or replace with a string
+
+async function api(action: string, method: "GET" | "POST" = "GET", payload?: any) {
+  const url = new URL(BASE_URL);
+  url.searchParams.set("action", action);
+  const opts: RequestInit = { method, headers: { "Content-Type": "application/json" } };
+  if (method === "POST" && payload) opts.body = JSON.stringify(payload);
+  const res = await fetch(url.toString(), opts);
+  if (!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+
+// --- Helpers ---
+const Section = ({ children }: { children: React.ReactNode }) => (
+  <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="grid gap-4">
+    {children}
+  </motion.section>
+);
+
+const Stat = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) => (
+  <Card className="rounded-2xl">
+    <CardContent className="p-4 md:p-6 flex items-center gap-4">
+      <span className="p-3 rounded-xl bg-muted"><Icon className="w-6 h-6" /></span>
+      <div>
+        <div className="text-2xl font-semibold leading-tight">{value}</div>
+        <div className="text-muted-foreground text-sm">{label}</div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// --- Main App ---
+export default function SocietyGuardApp() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [view, setView] = useState<
+    | "dashboard"
+    | "notices"
+    | "tickets"
+    | "directory"
+    | "payments"
+    | "documents"
+    | "voters"
+    | "security"
+  >("dashboard");
+
+  // stores
+  const [directory, setDirectory] = useState<any[]>([]);
+  const [notices, setNotices] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]); // from Issues
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [voters, setVoters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      if (!BASE_URL) return; // avoid failing if not configured yet
+      try {
+        setLoading(true);
+        const [dir, nts, iss, txs, docs, vts] = await Promise.all([
+          api("listDirectory"),
+          api("listNotices"),
+          api("listIssues"),
+          api("listTransactions"),
+          api("listDocuments"),
+          api("listVoters"),
+        ]);
+        setDirectory(dir?.rows || []);
+        setNotices(nts?.rows || []);
+        setTickets(iss?.rows || []);
+        setTransactions(txs?.rows || []);
+        setDocuments(docs?.rows || []);
+        setVoters(vts?.rows || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const residents = directory.map((r) => ({
+    id: r.Serial ?? r.id ?? `${r.Name}-${r.Flat}`,
+    name: r.Name ?? r["First Owner Name"] ?? "",
+    flat: r.Flat ?? `${r["Tower No."] || ""}-${r["Flat No."] || ""}`,
+    phone: r.Phone || r.Mobile || "",
+    email: r.Email || "",
+  }));
+
+  const filteredResidents = useMemo(() => {
+    const q = search.toLowerCase();
+    return residents.filter((r) => [r.name, r.flat, r.phone, r.email].some((v) => String(v || "").toLowerCase().includes(q)));
+  }, [search, directory]);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Topbar */}
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMenuOpen((v) => !v)}>
+              <Menu className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Shield className="w-6 h-6" />
+              <span className="font-semibold">SocietyGuard</span>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2">
+            <Input placeholder="Search directory…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-[320px]" />
+            <Button variant="secondary"><Search className="w-4 h-4 mr-2" />Search</Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Shell */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4 p-4">
+        {/* Sidebar */}
+        <aside className={`md:block ${menuOpen ? "block" : "hidden"}`}>
+          <nav className="grid gap-2">
+            <NavItem icon={Home} label="Dashboard" active={view === "dashboard"} onClick={() => setView("dashboard")} />
+            <NavItem icon={Megaphone} label="Notices" active={view === "notices"} onClick={() => setView("notices")} />
+            <NavItem icon={Ticket} label="Issues" active={view === "tickets"} onClick={() => setView("tickets")} />
+            <NavItem icon={Users} label="Directory" active={view === "directory"} onClick={() => setView("directory")} />
+            <NavItem icon={HandCoins} label="Payments" active={view === "payments"} onClick={() => setView("payments")} />
+            <NavItem icon={FileText} label="Documents" active={view === "documents"} onClick={() => setView("documents")} />
+            <NavItem icon={ListChecks} label="Voters" active={view === "voters"} onClick={() => setView("voters")} />
+            <NavItem icon={Shield} label="Security" active={view === "security"} onClick={() => setView("security")} />
+          </nav>
+        </aside>
+
+        {/* Content */}
+        <main className="grid gap-6">
+          {loading && <div className="text-sm text-muted-foreground">Loading from Google Sheets…</div>}
+          {view === "dashboard" && (
+            <Dashboard
+              residents={residents}
+              tickets={tickets}
+              transactions={transactions}
+              notices={notices}
+            />
+          )}
+          {view === "notices" && <Notices notices={notices} onCreate={async (n) => {
+            const created = await api("createNotice", "POST", n);
+            setNotices((p) => [created, ...p]);
+          }} />}
+          {view === "tickets" && <Issues tickets={tickets} onCreate={async (t) => {
+            const created = await api("createIssue", "POST", t);
+            setTickets((p) => [created, ...p]);
+          }} />}
+          {view === "directory" && <Directory residents={filteredResidents} />}
+          {view === "payments" && <Payments transactions={transactions} />}
+          {view === "documents" && <Documents documents={documents} />}
+          {view === "voters" && <Voters voters={voters} />}
+          {view === "security" && <Security />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// --- UI Bits ---
+function NavItem({ icon: Icon, label, active, onClick }: { icon: any; label: string; active?: boolean; onClick: () => void }) {
+  return (
+    <Button variant={active ? "default" : "ghost"} className="justify-start gap-3 rounded-xl" onClick={onClick}>
+      <Icon className="w-4 h-4" />{label}
+    </Button>
+  );
+}
+
+// --- Pages ---
+function Dashboard({ residents, tickets, transactions, notices }: any) {
+  const openTickets = tickets.filter((t: any) => (t.Status || t.status || "").toLowerCase() !== "closed").length;
+  const totalDue = transactions
+    .filter((t: any) => (t.Type || "").toLowerCase() === "debit")
+    .reduce((a: number, b: any) => a + Number(b.Amount || 0), 0);
+  const totalPaid = transactions
+    .filter((t: any) => (t.Type || "").toLowerCase() === "credit")
+    .reduce((a: number, b: any) => a + Number(b.Amount || 0), 0);
+
+  return (
+    <Section>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Stat icon={Users} label="Residents" value={residents.length} />
+        <Stat icon={Ticket} label="Open issues" value={openTickets} />
+        <Stat icon={HandCoins} label="Net collected" value={`€ ${(totalPaid - totalDue).toFixed(2)}`} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Latest notices</CardTitle>
+            <CardDescription>From the "Notices" sheet</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {notices.slice(0, 5).map((n: any, i: number) => (
+              <div key={i} className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <div className="font-medium">{n["Subject"] || n.title}</div>
+                  <div className="text-xs text-muted-foreground">{n.Date || n.createdAt}</div>
+                </div>
+                <Badge variant="secondary">{n["Serial Number"] || n.id || ""}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Open issues</CardTitle>
+            <CardDescription>From the "Issues" sheet</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {tickets.filter((t: any) => (t.Status || "").toLowerCase() !== "closed").slice(0, 5).map((t: any, i: number) => (
+              <div key={i} className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <div className="font-medium">{t["Title"] || t.title || t["Category"]}</div>
+                  <div className="text-xs text-muted-foreground">{t["Category"]} • {t["Flat"] || t["Flat No."] || ""}</div>
+                </div>
+                <Badge>{t["Status"] || t.status}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </Section>
+  );
+}
+
+function Notices({ notices, onCreate }: any) {
+  const [subject, setSubject] = useState("");
+  const [notice, setNotice] = useState("");
+  const submit = async () => {
+    if (!subject) return;
+    const created = await onCreate({ Subject: subject, Notice: notice, Date: new Date().toLocaleDateString() });
+    setSubject(""); setNotice("");
+    return created;
+  };
+  return (
+    <Section>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Post notice</CardTitle>
+          <CardDescription>Writes to the "Notices" sheet</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Subject</Label>
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Water shutdown" />
+          </div>
+          <div className="grid gap-2">
+            <Label>Notice</Label>
+            <Textarea rows={4} value={notice} onChange={(e) => setNotice(e.target.value)} placeholder="Details…" />
+          </div>
+          <div>
+            <Button onClick={submit} className="rounded-xl"><Megaphone className="w-4 h-4 mr-2" />Publish</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3">
+        {notices.map((n: any, i: number) => (
+          <Card key={i} className="rounded-2xl">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{n["Subject"]}</CardTitle>
+                <Badge variant="secondary">{n["Serial Number"] || i + 1}</Badge>
+              </div>
+              <CardDescription>{n["Date"]}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-relaxed">{n["Notice"] || ""}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function Issues({ tickets, onCreate }: any) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Infrastructure");
+  const [flat, setFlat] = useState("");
+  const [description, setDescription] = useState("");
+
+  const submit = async () => {
+    if (!title || !flat) return;
+    await onCreate({ Title: title, Category: category, Flat: flat, Description: description, Status: "Open", "Date and Time Raised": new Date().toISOString() });
+    setTitle(""); setFlat(""); setDescription(""); setCategory("Infrastructure");
+  };
+
+  const categories = ["Infrastructure", "Plumbing", "Electrical", "Housekeeping", "Security"];
+
+  return (
+    <Section>
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="rounded-xl">
+          <TabsTrigger value="list">Issues</TabsTrigger>
+          <TabsTrigger value="new">New Issue</TabsTrigger>
+        </TabsList>
+        <TabsContent value="list" className="grid gap-3 mt-3">
+          {tickets.map((t: any, i: number) => (
+            <Card key={i} className="rounded-2xl">
+              <CardContent className="p-4 md:p-6 grid gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{t["Title"] || t["Category"]}</div>
+                    <div className="text-xs text-muted-foreground">{t["Category"]} • {t["Flat"]}</div>
+                  </div>
+                  <Badge>{t["Status"]}</Badge>
+                </div>
+                {t["Description"] && <p className="text-sm text-muted-foreground">{t["Description"]}</p>}
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+        <TabsContent value="new" className="mt-3">
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Raise an issue</CardTitle>
+              <CardDescription>Writes to the "Issues" sheet</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <div className="grid gap-2">
+                <Label>Title</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-64"><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Flat</Label>
+                  <Input value={flat} onChange={(e) => setFlat(e.target.value)} placeholder="e.g., A-302" />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Details</Label>
+                  <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+                </div>
+              </div>
+              <div>
+                <Button onClick={submit} className="rounded-xl"><Plus className="w-4 h-4 mr-2" />Submit</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </Section>
+  );
+}
+
+function Directory({ residents }: any) {
+  return (
+    <Section>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Residents directory</CardTitle>
+          <CardDescription>From the "Directory" sheet (read-only demo)</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {residents.map((r: any) => (
+            <div key={r.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border p-4">
+              <div>
+                <div className="font-medium">{r.name} <Badge variant="outline" className="ml-2">{r.flat}</Badge></div>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-1">
+                  {r.phone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{r.phone}</span>}
+                  {r.email && <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{r.email}</span>}
+                </div>
+              </div>
+              <Button variant="secondary" className="rounded-xl">Message</Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function Payments({ transactions }: any) {
+  const totals = useMemo(() => {
+    const paid = transactions.filter((t: any) => (t.Type || "").toLowerCase() === "credit").reduce((a: number, b: any) => a + Number(b.Amount || 0), 0);
+    const due = transactions.filter((t: any) => (t.Type || "").toLowerCase() === "debit").reduce((a: number, b: any) => a + Number(b.Amount || 0), 0);
+    return { paid, due };
+  }, [transactions]);
+
+  return (
+    <Section>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Stat icon={HandCoins} label="Collected (credits)" value={`€ ${totals.paid.toFixed(2)}`} />
+        <Stat icon={HandCoins} label="Debits" value={`€ ${totals.due.toFixed(2)}`} />
+      </div>
+
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Transactions</CardTitle>
+          <CardDescription>From the "Transactions" sheet</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {transactions.map((p: any, i: number) => (
+            <div key={i} className="grid md:grid-cols-6 gap-2 items-center rounded-xl border p-3 text-sm">
+              <div className="font-medium md:col-span-2">{p["Date"]}</div>
+              <div>{p["Type"]}</div>
+              <div>{p["Category"]}</div>
+              <div>{p["Sub-category"]}</div>
+              <div className="flex items-center justify-between md:justify-end gap-3">
+                <span>€ {Number(p["Amount"] || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function Documents({ documents }: any) {
+  return (
+    <Section>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Documents</CardTitle>
+          <CardDescription>From the "Documents" sheet</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {documents.map((d: any, i: number) => (
+            <div key={i} className="flex items-center justify-between rounded-2xl border p-4">
+              <div>
+                <div className="font-medium">{d["Subject"]}</div>
+                <div className="text-xs text-muted-foreground">{d["Date"]} • {d["Category"]}</div>
+              </div>
+              {d["Link"] && <a className="text-sm underline" href={d["Link"]} target="_blank" rel="noreferrer">Open</a>}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function Voters({ voters }: any) {
+  return (
+    <Section>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Voters list</CardTitle>
+          <CardDescription>From the "Voters" sheet</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {voters.map((v: any, i: number) => (
+            <div key={i} className="flex items-center justify-between rounded-2xl border p-4">
+              <div>
+                <div className="font-medium">{v["First Owner Name"]}{v["Second Owner Name"] ? ` & ${v["Second Owner Name"]}` : ""}</div>
+                <div className="text-xs text-muted-foreground">Tower {v["Tower No."]} • Flat {v["Flat No."]}</div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function Security() {
+  return (
+    <Section>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          <CardDescription>Configure later (e.g., whitelist, staff access)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">This demo focuses on Sheets-backed modules first.</div>
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
