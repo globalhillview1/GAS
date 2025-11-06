@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAS Secured Frontend with RBAC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">Secured GAS App (RBAC Demo)</h1>
+
+        <div id="auth-section" class="mb-6 p-4 bg-gray-100 rounded-xl shadow-inner">
+            <h2 class="text-xl font-bold mb-3 text-gray-700">User Authentication (Role Check)</h2>
+            <p class="text-sm text-gray-600 mb-3">Login to enable the Admin Panel. Use **admin** and its hash from the Users sheet. The provided hash is for demonstration purposes.</p>
+            <div id="login-form" class="flex flex-wrap gap-2 items-center">
+                <input type="text" id="username" value="admin" placeholder="Username (e.g., admin)" class="p-2 border rounded-lg flex-1 min-w-[150px] focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="password" id="passwordHash" value="f88d7ddc8832d21d827b2c52eb1403b79376769855ac27c4ffede67d9d0c0012" placeholder="Password Hash" class="p-2 border rounded-lg flex-1 min-w-[250px] focus:ring-indigo-500 focus:border-indigo-500">
+                <button onclick="login()" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-150">Login</button>
+            </div>
+            <div id="user-status" class="mt-3 font-medium">Loading user data...</div>
+        </div>
+
+        <div id="admin-panel" class="hidden mb-6 p-6 bg-red-50 border-2 border-red-200 rounded-xl">
+            <h2 class="text-xl font-bold mb-4 text-red-700">Admin Panel: Add Transaction (WRITE Test)</h2>
+            <p class="text-sm text-red-600 mb-4">The backend will **reject** this POST request unless your determined role is 'admin'.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <input type="date" id="t-date" value="2025-11-06" class="p-2 border rounded-lg" required>
+                <input type="text" id="t-type" value="Expense" placeholder="Type (Income/Expense)" class="p-2 border rounded-lg" required>
+                <input type="text" id="t-category" value="Utilities" placeholder="Category" class="p-2 border rounded-lg" required>
+                <input type="number" id="t-amount" value="15000" placeholder="Amount" class="p-2 border rounded-lg" required>
+                <input type="text" id="t-party" value="Admin Test Vendor" placeholder="Party" class="p-2 border rounded-lg col-span-2" required>
+            </div>
+            <button onclick="addTransaction()" class="px-6 py-2 w-full bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 transition duration-150 font-semibold">
+                Add New Transaction (POST)
+            </button>
+            <div id="add-status" class="mt-3 p-2 text-sm font-medium"></div>
+        </div>
+        <div class="mt-8">
+            <h2 class="text-xl font-bold mb-3 text-gray-800">Data Viewer (READ Test)</h2>
+            <div class="flex flex-wrap gap-4 mb-6">
+                <button onclick="loadData('transactions')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-150">Load Transactions</button>
+                <button onclick="loadData('users')" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition duration-150">Load Users</button>
+                <button onclick="loadData('issues')" class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700 transition duration-150">Load Issues</button>
+            </div>
+        </div>
+
+        <div id="read-status" class="mb-4 p-3 bg-blue-100 border-l-4 border-blue-500 text-blue-800 rounded-md">
+            Click a button to load data...
+        </div>
+
+        <div id="data-container" class="bg-gray-50 p-4 rounded-lg overflow-x-auto text-sm">
+            <pre class="whitespace-pre-wrap text-gray-700" id="data-output">No data loaded.</pre>
+        </div>
+    </div>
+
+    <script>
+        // --- REQUIRED DATA CONFIGURATION ---
+        // 1. PASTE THE URL you received after deploying your Google Apps Script as a Web App (Exec link).
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwQU24MmC2_vFF8jh3Ls7bJfXUW3djFB5L2Ico8qGeqe8BLnFa7QsB_QUFap8bBWkTj/exec';
+        // 2. PASTE ONE of the secret keys defined in the ALLOWED_API_KEYS array in your Code.gs file.
+        const CLIENT_API_KEY = 'gass-app-1A7F-SECRET-KEY-2025';
+        // -----------------------------------
+
+        let ALL_USERS = [];
+        let CURRENT_USER_ROLE = null;
+
+        const userStatusEl = document.getElementById('user-status');
+        const loginFormEl = document.getElementById('login-form');
+        const adminPanelEl = document.getElementById('admin-panel');
+        const readStatusEl = document.getElementById('read-status');
+        const addStatusEl = document.getElementById('add-status');
+        const dataOutputEl = document.getElementById('data-output');
+
+        // --- AUTHENTICATION & ROLE CHECK ---
+
+        async function fetchAllUsers() {
+            // Load user data to enable client-side login check
+            userStatusEl.textContent = 'Fetching user list from sheet...';
+            try {
+                const url = `${GAS_WEB_APP_URL}?sheet=users&apiKey=${CLIENT_API_KEY}`;
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.ok) {
+                    ALL_USERS = result.data;
+                    userStatusEl.textContent = 'Ready. Please enter your credentials and click Login.';
+                } else {
+                    ALL_USERS = []; // Clear users on error
+                    userStatusEl.textContent = `Error loading users: ${result.error}`;
+                    console.error('Failed to load user data:', result.error);
+                }
+            } catch (error) {
+                userStatusEl.textContent = `Connection Error. Check GAS URL.`;
+                console.error('Error fetching user list:', error);
+            }
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const passwordHash = document.getElementById('passwordHash').value;
+
+            if (ALL_USERS.length === 0) {
+                 userStatusEl.textContent = 'User data not loaded. Please wait or check connection.';
+                 return;
+            }
+
+            // Client-side authentication lookup
+            const user = ALL_USERS.find(u =>
+                u.username === username && u.passwordHash === passwordHash
+            );
+
+            if (user) {
+                CURRENT_USER_ROLE = user.role.toLowerCase();
+                userStatusEl.innerHTML = `Logged in as: <span class="font-bold text-green-700">${username}</span> (Role: <span class="text-indigo-600">${CURRENT_USER_ROLE}</span>)`;
+
+                // Show/Hide Admin Panel based on role
+                if (CURRENT_USER_ROLE === 'admin') {
+                    adminPanelEl.classList.remove('hidden');
+                } else {
+                    adminPanelEl.classList.add('hidden');
+                }
+                document.getElementById('auth-section').classList.add('hidden'); // Hide the entire auth section after successful login
+
+            } else {
+                CURRENT_USER_ROLE = null;
+                userStatusEl.textContent = 'Login Failed: Invalid credentials or user not found.';
+                adminPanelEl.classList.add('hidden');
+            }
+        }
+
+        // --- WRITE OPERATION (Admin Only) ---
+
+        async function addTransaction() {
+            if (CURRENT_USER_ROLE !== 'admin') {
+                addStatusEl.textContent = 'ERROR: You must be logged in as an admin to add data.';
+                addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
+                return;
+            }
+
+            // Gather data for the new row. Column order must match your 'Transactions' sheet:
+            // Date,Type,Category,Sub-category,Amount,Party,Notes,Cost Center,Payment Mode,Ref/Invoice,Attachment URL,Cleared?
+            const newRowData = [
+                document.getElementById('t-date').value,
+                document.getElementById('t-type').value,
+                document.getElementById('t-category').value,
+                'WEB_ENTRY_N/A', // Sub-category placeholder (4th column)
+                document.getElementById('t-amount').value,
+                document.getElementById('t-party').value,
+                'Added by Admin via Web Interface', // Notes
+                'WEB_ENTRY', // Cost Center
+                'WEB_PAYMENT', // Payment Mode
+                'WEB-' + Date.now(), // Ref/Invoice
+                '', // Attachment URL
+                'TRUE' // Cleared?
+            ];
+
+            addStatusEl.textContent = 'Sending POST request...';
+            addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-yellow-200 text-yellow-800 rounded';
+
+            try {
+                const payload = {
+                    apiKey: CLIENT_API_KEY,
+                    sheet: 'transactions',
+                    role: CURRENT_USER_ROLE, // This is checked by the backend
+                    data: newRowData
+                };
+
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    addStatusEl.textContent = `SUCCESS: Transaction Added! Row: ${JSON.stringify(result.newRow)}`;
+                    addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-green-200 text-green-800 rounded';
+                    loadData('transactions');
+                } else {
+                    addStatusEl.textContent = `FAILED (Backend Check): ${result.error}`;
+                    addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
+                }
+
+            } catch (error) {
+                addStatusEl.textContent = `FETCH ERROR: ${error.message}`;
+                addStatusEl.className = 'mt-3 p-2 text-sm font-medium bg-red-200 text-red-800 rounded';
+            }
+        }
+
+        // --- READ OPERATION ---
+
+        async function loadData(sheetKey) {
+            if (GAS_WEB_APP_URL === 'PASTE_YOUR_DEPLOYED_GAS_URL_HERE') {
+                readStatusEl.textContent = 'ERROR: Please configure the GAS_WEB_APP_URL.';
+                return;
+            }
+
+            readStatusEl.textContent = `Loading data from the '${sheetKey}' sheet...`;
+            dataOutputEl.textContent = 'Loading...';
+
+            try {
+                const url = `${GAS_WEB_APP_URL}?sheet=${sheetKey}&apiKey=${CLIENT_API_KEY}`;
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.ok) {
+                    readStatusEl.textContent = `Successfully loaded ${result.data.length} records from '${sheetKey}'.`;
+                    dataOutputEl.textContent = JSON.stringify(result.data, null, 2);
+                } else {
+                    readStatusEl.textContent = `API Error: ${result.error}`;
+                    dataOutputEl.textContent = 'Failed to load data.';
+                }
+
+            } catch (error) {
+                readStatusEl.textContent = `Fetch Failed. Check your GAS URL, deployment, and security settings. Error: ${error.message}`;
+                dataOutputEl.textContent = 'Connection error.';
+            }
+        }
+
+        // --- Initialization ---
+        window.onload = function () {
+            // Check for configuration first
+            if (GAS_WEB_APP_URL === 'PASTE_YOUR_DEPLOYED_GAS_URL_HERE') {
+                 userStatusEl.innerHTML = '<span class="text-red-600 font-bold">CONFIG ERROR:</span> Update GAS_WEB_APP_URL and CLIENT_API_KEY in the script.';
+                 return;
+            }
+
+            // Pre-load user list for client-side login
+            fetchAllUsers();
+        };
+
+    </script>
+</body>
+</html>
+```eof
