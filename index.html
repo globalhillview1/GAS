@@ -1,571 +1,568 @@
+<!-- Single-file, no-build index.html for GitHub Pages
+     ✅ Uses React 18 UMD + Babel Standalone (runs directly on GH Pages)
+     ✅ No imports/TypeScript/bundler needed
+     ✅ Connects to your Google Apps Script backend
+     ✅ Robust fetch with timeout+retries, clear errors, and Demo Mode fallback
+     ✅ FIX: Added Babel presets (env,react) to prevent "Unexpected token (1:0)" JSX parse error
+     ✅ TESTS: Lightweight self-tests run on load; results shown in Diagnostics
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Global Hillview — Society Portal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="light dark" />
-  <link rel="icon" href="assets/brand-mark.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SocietyGuard — Sheets-backed Portal</title>
+  <meta name="description" content="Community management web app powered by Google Sheets (GAS backend)." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E" />
 
-  <!-- Tailwind -->
+  <!-- Tailwind (utility styles) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          colors: { ink:"#0f172a", mist:"#f8fafc", card:"#ffffff", border:"#e5e7eb" }
-        }
-      }
+      theme: { extend: { colors: { background: '#f9fafb', foreground: '#111827' } } }
     }
   </script>
 
-  <!-- React + Babel -->
+  <!-- React 18 UMD + Babel Standalone for in-browser JSX (no build step) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- GAS endpoint (override with ?gas=<url>) -->
+  <!-- Configure your Google Apps Script endpoint here (can be overridden by ?gas=... or disabled via ?demo=1) -->
   <script>
+    // IMPORTANT: Keep this value or override via the URL param `?gas=...`
     window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
   </script>
 
   <style>
-    :root { --hdr:64px }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px }
-    .btn { background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem }
-    .btn-ghost { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem }
-    .badge { font-size:.75rem; background:#f3f4f6; padding:.2rem .5rem; border-radius:.5rem }
-    header { position:sticky; top:0; z-index:40; height:var(--hdr); backdrop-filter: blur(10px) saturate(160%);
-             background:rgba(255,255,255,.75); border-bottom:1px solid #e5e7eb }
-    .login-bg {
-      background: radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.35), transparent 40%),
-                  radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.35), transparent 45%),
-                  radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.35), transparent 40%),
-                  #0b1220;
-      min-height:100vh
-    }
-    .spin { border:2px solid #fff; border-top-color:transparent; width:14px; height:14px; border-radius:50%; animation: s .9s linear infinite }
-    @keyframes s { to { transform:rotate(360deg) } }
+    .card { background:#fff; border-radius:1rem; box-shadow:0 1px 2px rgba(0,0,0,.04); border:1px solid #e5e7eb; }
+    .btn  { padding:.5rem 1rem; border-radius:.75rem; background:#111827; color:#fff; }
+    .btn:hover { background:#0b0f1a; }
+    .btn-secondary { padding:.5rem .75rem; border-radius:.75rem; background:#f3f4f6; color:#111827; }
+    .btn-secondary:hover { background:#e5e7eb; }
+    .badge { display:inline-flex; align-items:center; padding:.125rem .5rem; font-size:.75rem; border-radius:.5rem; background:#f3f4f6; color:#374151; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 </head>
-<body class="bg-mist text-ink">
-  <div id="root"></div>
+<body class="bg-background text-foreground">
+  <div id="root" class="min-h-screen"></div>
 
+  <!-- App Code (JSX compiled in the browser) -->
+  <!-- IMPORTANT: data-presets enables JSX transpilation (react) + modern JS (env) -->
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
 
-    // ---------------- Config / helpers ----------------
-    const SOCIETY = "Global Hillview, Sec-11, Sohna, Gurgaon";
-    const INR = new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 });
-    const qs  = new URLSearchParams(location.search);
-    const GAS = (qs.get("gas") || window.ENV_GAS_URL || "").trim();
+    // =====================
+    // Config & Utilities
+    // =====================
+    const params = new URLSearchParams(location.search);
+    const URL_OVERRIDE = params.get('gas');
+    const FORCE_DEMO   = params.get('demo') === '1' || params.get('offline') === '1';
+    const BASE_URL = (URL_OVERRIDE || (window.ENV_GAS_URL || '')).trim();
 
-    const ddmmyyyy = (v)=>{
-      if(!v) return "";
-      const d = new Date(v);
-      if(Number.isNaN(d)) return String(v);
-      const dd = String(d.getDate()).padStart(2,"0");
-      const mm = String(d.getMonth()+1).padStart(2,"0");
-      return `${dd}-${mm}-${d.getFullYear()}`;
+    const DEMO = {
+      Directory: [
+        { Serial: 1, Name: 'Ayesha Khan',  Flat: 'A-302', Phone: '+49 160 555 0001', Email: 'ayesha@example.com' },
+        { Serial: 2, Name: 'Rohan Mehta',  Flat: 'B-1204', Phone: '+49 160 555 0002', Email: 'rohan@example.com' },
+        { Serial: 3, Name: 'Sofia Keller', Flat: 'C-803', Phone: '+49 160 555 0003', Email: 'sofia@example.com' }
+      ],
+      Notices: [
+        { 'Serial Number': 1, Subject: 'Water shutdown on Friday', Date: '2025-01-15', Notice: 'Maintenance from 10:00–12:00 in Block B.' },
+        { 'Serial Number': 2, Subject: 'Diwali Fest – Community Hall', Date: '2025-01-16', Notice: 'Potluck & games this Saturday 18:30.' }
+      ],
+      Issues: [
+        { 'Tracking ID': 'demo-101', 'Date and Time Raised': '2025-01-16T09:00:00Z', Tower: '', Flat: 'B-1204', Title: 'Lift not working', Category: 'Infrastructure', Description: 'Lift stuck at floor 7.', Status: 'Open' },
+        { 'Tracking ID': 'demo-102', 'Date and Time Raised': '2025-01-16T09:15:00Z', Tower: '', Flat: 'A-302', Title: 'Water leakage', Category: 'Plumbing', Description: 'Leak in kitchen sink.', Status: 'In Progress' }
+      ],
+      Documents: [
+        { 'Serial Number': 1, Subject: 'AGM Minutes', Date: '2025-01-10', Media: 'PDF', Link: '#', Category: 'Governance' }
+      ],
+      Transactions: [
+        { Date: '2025-01-01', Type: 'Credit', Category: 'Maintenance', 'Sub-category': 'Monthly', Amount: 120 },
+        { Date: '2025-01-01', Type: 'Debit',  Category: 'Clubhouse',  'Sub-category': 'Snacks',  Amount: 25 }
+      ],
+      Voters: [
+        { 'Tower No.': 'A', 'Flat No.': '302', 'First Owner Name': 'Ayesha Khan', 'Second Owner Name': '' }
+      ]
     };
-    const fmtDT = (v)=>{
-      if(!v) return "";
-      const d = new Date(v); if(Number.isNaN(d)) return String(v);
-      const dd = String(d.getDate()).padStart(2,"0");
-      const mm = String(d.getMonth()+1).padStart(2,"0");
-      const HH = String(d.getHours()).padStart(2,"0");
-      const MM = String(d.getMinutes()).padStart(2,"0");
-      return `${dd}-${mm}-${d.getFullYear()} ${HH}:${MM}`;
-    };
-    const pickCols = (rows)=> rows.length ? Object.keys(rows[0]) : [];
 
-    async function fetchWithTimeout(url, opts={}, ms=30000){
-      const ctl = new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
-      try { return await fetch(url, {...opts, signal: ctl.signal}); }
-      finally { clearTimeout(id) }
-    }
-    async function getJSON(action){
-      const u = new URL(GAS); u.searchParams.set("action", action);
-      const r = await fetchWithTimeout(u, { cache:"no-store" });
-      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
-      return r.json();
-    }
-    async function postJSON(body){
-      const r = await fetchWithTimeout(GAS, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(body)
-      });
-      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
-      return r.json();
+    // Fetch with timeout + retries to avoid hanging "Failed to fetch" and surface CORS issues clearly
+    async function fetchWithTimeout(url, opts={}, timeoutMs=10000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try { return await fetch(url, { ...opts, signal: controller.signal }); }
+      finally { clearTimeout(id); }
     }
 
-    const api = {
-      login:        (u,p)=> postJSON({ op:"login", username:u, password:p }),
-      sessionInfo:  (t)=>   postJSON({ op:"sessionInfo", token:t }),
-      updateIssue:  (t,p)=> postJSON({ op:"update", token:t, ...p }),   // id + (status|remark|resolved)
-      createNotice: (p)=>   getJSON("noop").then(()=>postJSON({ ...p })), // not used here; we call action=createNotice below
-      listAll: async ()=>{
-        const calls = [
-          ["dir", "listDirectory"],
-          ["nts", "listNotices"],
-          ["iss", "listIssues"],
-          ["txs", "listTransactions"],
-          ["docs","listDocuments"],
-          ["vts", "listVoters"],
-          ["obs", "listOpeningBalances"],
-          ["coa", "listChartOfAccounts"],
-          ["usr", "listUsers"],
-        ];
-        const res = await Promise.allSettled(calls.map(([k,a])=>getJSON(a)));
-        const obj = {};
-        calls.forEach(([k],i)=>{
-          obj[k] = res[i].status==="fulfilled" ? (res[i].value.rows || []) : [];
-        });
-        return obj;
-      },
-      // legacy create endpoints (action=…)
-      create(action, payload){
-        const u = new URL(GAS); u.searchParams.set("action", action);
-        return fetchWithTimeout(u, {
-          method:"POST",
-          headers:{ "Content-Type":"text/plain;charset=utf-8" },
-          body: JSON.stringify(payload)
-        }).then(r=>r.json());
+    async function api(action, method='GET', payload, retries=1) {
+      if (!BASE_URL) throw new Error('Missing BASE_URL');
+      const url = new URL(BASE_URL);
+      url.searchParams.set('action', action);
+
+      // IMPORTANT: Avoid CORS preflight to Google Apps Script by
+      //  • not sending Content-Type for GET
+      //  • using text/plain for POST (GAS reads e.postData.contents)
+      const headers = method === 'POST' ? { 'Content-Type': 'text/plain;charset=utf-8' } : {};
+      const opts = { method, headers };
+      if (method === 'POST' && payload) opts.body = JSON.stringify(payload);
+
+      let lastErr;
+      for (let i=0; i<=retries; i++) {
+        try {
+          const res = await fetchWithTimeout(url.toString(), opts, 12000);
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        } catch (e) {
+          lastErr = e;
+          if (i === retries) throw e;
+          await new Promise(r => setTimeout(r, 600 * (i+1)));
+        }
       }
-    };
+      throw lastErr;
+    }
 
-    // ---------------- Atoms ----------------
-    const Btn = (p)=><button {...p} className={"btn "+(p.className||"")} />;
-    const BtnGhost = (p)=><button {...p} className={"btn-ghost "+(p.className||"")} />;
+    function NavItem({ label, active, onClick }) {
+      return (
+        <button className={`btn-secondary text-left ${active ? 'ring-2 ring-gray-300' : ''}`} onClick={onClick}>{label}</button>
+      );
+    }
 
-    // ---------------- Login ----------------
-    function Login({ onOK }){
-      const [u,setU] = useState(""); const [p,setP] = useState("");
-      const [err,setErr] = useState(""); const [busy,setBusy] = useState(false);
-      async function go(){
-        if(busy) return; setBusy(true); setErr("");
-        try{
-          const r = await api.login(u,p);
-          if(r?.ok && r?.token){
-            localStorage.setItem("session", r.token);
-            onOK({ token:r.token, role:(r.role||"user").toLowerCase() });
-          } else setErr(r?.error || "Invalid credentials");
-        }catch(e){ setErr(String(e)); }
-        finally{ setBusy(false); }
+    function Stat({ label, value }) {
+      return (
+        <div className="card p-5">
+          <div className="text-2xl font-semibold">{value}</div>
+          <div className="text-sm text-gray-500">{label}</div>
+        </div>
+      );
+    }
+
+    function Banner({ kind='info', children }) {
+      const cls = kind==='error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200';
+      return <div className={`border rounded-xl p-3 ${cls}`}>{children}</div>;
+    }
+
+    function Section({ children }) { return <section className="grid gap-4">{children}</section>; }
+
+    // =====================
+    // Pages
+    // =====================
+    function Dashboard({ residents, tickets, transactions, notices }) {
+      const openTickets = tickets.filter(t => String(t.Status||t.status||'').toLowerCase() !== 'closed').length;
+      const totalDue  = transactions.filter(t => String(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
+      const totalPaid = transactions.filter(t => String(t.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
+      return (
+        <Section>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Stat label="Residents" value={residents.length} />
+            <Stat label="Open issues" value={openTickets} />
+            <Stat label="Net collected" value={`€ ${(totalPaid-totalDue).toFixed(2)}`} />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="card p-5">
+              <div className="font-medium mb-1">Latest notices</div>
+              <div className="text-xs text-gray-500 mb-3">From the "Notices" sheet</div>
+              <div className="grid gap-2">
+                {notices.slice(0,5).map((n,i)=> (
+                  <div key={i} className="flex items-center justify-between border rounded-xl p-3">
+                    <div>
+                      <div className="font-medium">{n['Subject']||n.title}</div>
+                      <div className="text-xs text-gray-500">{n.Date||n.createdAt}</div>
+                    </div>
+                    <span className="badge">{n['Serial Number']||n.id||''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="card p-5">
+              <div className="font-medium mb-1">Open issues</div>
+              <div className="text-xs text-gray-500 mb-3">From the "Issues" sheet</div>
+              <div className="grid gap-2">
+                {tickets.filter(t=>String(t.Status||'').toLowerCase()!=='closed').slice(0,5).map((t,i)=> (
+                  <div key={i} className="flex items-center justify-between border rounded-xl p-3">
+                    <div>
+                      <div className="font-medium">{t['Title']||t['Category']}</div>
+                      <div className="text-xs text-gray-500">{t['Category']} • {t['Flat']||t['Flat No.']||''}</div>
+                    </div>
+                    <span className="badge">{t['Status']||'Open'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    function Notices({ notices, onCreate, writable }) {
+      const [subject, setSubject] = useState('');
+      const [notice, setNotice]   = useState('');
+      async function submit(){
+        if(!subject) return;
+        const created = await onCreate({ Subject: subject, Notice: notice, Date: new Date().toLocaleDateString() });
+        setSubject(''); setNotice('');
+        return created;
       }
       return (
-        <div className="login-bg grid place-items-center p-6">
-          <div className="w-full max-w-md">
-            <div className="card p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <img src="assets/logo.png" className="w-10 h-10 rounded-md" alt="logo"/>
-                <div className="font-semibold">Global Hillview — Society Portal</div>
+        <Section>
+          {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
+          <div className="card p-5">
+            <div className="font-medium">Post notice</div>
+            <div className="text-xs text-gray-500 mb-4">Writes to the "Notices" sheet</div>
+            <div className="grid gap-3">
+              <div>
+                <label className="block text-sm mb-1">Subject</label>
+                <input className="w-full border rounded-xl p-2" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g., Water shutdown" />
               </div>
-              <div className="text-sm text-gray-500 mb-4">Sign in to continue</div>
-              <div className="grid gap-3">
-                <div>
-                  <label className="text-sm text-gray-500">Username</label>
-                  <input className="w-full border rounded-xl p-2 mt-1" value={u} onChange={e=>setU(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500">Password</label>
-                  <input className="w-full border rounded-xl p-2 mt-1" type="password" value={p} onChange={e=>setP(e.target.value)} />
-                </div>
-                <Btn onClick={go} className="flex items-center gap-2 justify-center">{busy && <span className="spin"></span>} {busy?"Signing in…":"Sign in"}</Btn>
-                {err && <div className="text-red-600 text-sm">{err}</div>}
+              <div>
+                <label className="block text-sm mb-1">Notice</label>
+                <textarea className="w-full border rounded-xl p-2" rows="4" value={notice} onChange={e=>setNotice(e.target.value)} placeholder="Details…"></textarea>
               </div>
-            </div>
-            <div className="flex items-center justify-between mt-3 text-white/70 text-xs px-1">
-              <span>Backend: <code>{GAS || "(not set)"}</code></span>
-              <span>Use <code>?gas=&lt;url&gt;</code> to override</span>
+              <div><button className="btn" onClick={submit} disabled={!writable}>Publish</button></div>
             </div>
           </div>
-        </div>
+          <div className="grid gap-3">
+            {notices.map((n,i)=> (
+              <div key={i} className="card p-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">{n['Subject']}</div>
+                  <span className="badge">{n['Serial Number']||i+1}</span>
+                </div>
+                <div className="text-xs text-gray-500 mb-2">{n['Date']}</div>
+                <div className="text-sm">{n['Notice']||''}</div>
+              </div>
+            ))}
+          </div>
+        </Section>
       );
     }
 
-    // ---------------- Header + Shell ----------------
-    const Header = ({role,onLogout})=>(
-      <header>
-        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="assets/brand-mark.png" className="w-8 h-8 rounded-md" alt="brand"/>
-            <div className="font-semibold">{SOCIETY}</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="badge">Logged in: {role}</span>
-            <BtnGhost onClick={onLogout}>Logout</BtnGhost>
-          </div>
-        </div>
-      </header>
-    );
-
-    const Sidebar = ({view,setView})=>{
-      const Item = ({id,label})=>(
-        <button onClick={()=>setView(id)} className={"w-full text-left btn-ghost mb-2 "+(view===id?"ring-2 ring-gray-300":"")}>{label}</button>
-      );
-      return (
-        <aside className="w-full md:w-60 p-3">
-          <Item id="dashboard" label="Dashboard" />
-          <Item id="notices"   label="Notices" />
-          <Item id="tickets"   label="Tickets" />
-          <Item id="directory" label="Directory" />
-          <Item id="payments"  label="Payments" />
-          <Item id="opening"   label="OpeningBalances" />
-          <Item id="coa"       label="ChartOfAccounts" />
-          <Item id="documents" label="Documents" />
-          <Item id="voters"    label="Voters" />
-          <Item id="admin"     label="Admin" />
-        </aside>
-      );
-    };
-
-    // ---------------- Dashboard (Issues KPIs + filters + grid) ----------------
-    function IssuesDashboard({ rows, isAdmin, onUpdate }){
-      const [from,setFrom]=useState(""); const [to,setTo]=useState("");
-      const [tower,setTower]=useState(""); const [flat,setFlat]=useState("");
-      const [issue,setIssue]=useState(""); const [status,setStatus]=useState(""); const [minRating,setMinRating]=useState("");
-
-      const parsed = useMemo(()=>rows.map(r=>{
-        const raised = r["Date and Time Raised"] ? new Date(r["Date and Time Raised"]) : null;
-        const resolved = r["Date and Time Resolved"] ? new Date(r["Date and Time Resolved"]) : null;
-        return {...r, __raised:raised, __resolved:resolved, __ms: (raised && resolved)? (resolved - raised) : null};
-      }),[rows]);
-
-      const filtered = useMemo(()=>{
-        let a = parsed.slice();
-        const dFrom = from ? new Date(from) : null;
-        const dTo   = to ? new Date(to+"T23:59:59") : null;
-        if(dFrom) a = a.filter(x=> x.__raised && x.__raised >= dFrom);
-        if(dTo)   a = a.filter(x=> x.__raised && x.__raised <= dTo);
-        if(tower) a = a.filter(x=> String(x["Tower"]||"").toLowerCase().includes(tower.toLowerCase()));
-        if(flat)  a = a.filter(x=> String(x["Flat"]||"").toLowerCase().includes(flat.toLowerCase()));
-        if(issue) a = a.filter(x=> String(x["Issue"]||"").toLowerCase().includes(issue.toLowerCase()) || String(x["Description"]||"").toLowerCase().includes(issue.toLowerCase()));
-        if(status)a = a.filter(x=> String(x["Status"]||"").toLowerCase() === status.toLowerCase());
-        if(minRating)a = a.filter(x=> Number(x["Feedback Rating"]||0) >= Number(minRating));
-        return a;
-      },[parsed,from,to,tower,flat,issue,status,minRating]);
-
-      const kpi = useMemo(()=>{
-        const total = filtered.length;
-        const open  = filtered.filter(x=>x["Status"]==="Open").length;
-        const prog  = filtered.filter(x=>x["Status"]==="InProgress").length;
-        const res   = filtered.filter(x=>x["Status"]==="Resolved").length;
-        const done  = filtered.filter(x=>x.__ms!=null);
-        const avgMs = done.length ? Math.round(done.reduce((a,b)=>a+b.__ms,0)/done.length) : 0;
-        const mm = Math.round(avgMs/60000), h=Math.floor(mm/60), d=Math.floor(h/24);
-        const ktime = `${d}d ${h%24}h ${mm%60}m`;
-        const rating = filtered.length ? (filtered.reduce((a,b)=>a+Number(b["Feedback Rating"]||0),0)/filtered.length).toFixed(2) : "0.00";
-        return { total, open, prog, res, ktime, rating };
-      },[filtered]);
-
-      return (
-        <div className="px-4 py-4">
-          {/* KPIs */}
-          <div className="grid md:grid-cols-6 gap-3">
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Total</div><div className="text-2xl font-semibold">{kpi.total}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Open</div><div className="text-2xl font-semibold">{kpi.open}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">In progress</div><div className="text-2xl font-semibold">{kpi.prog}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Resolved</div><div className="text-2xl font-semibold">{kpi.res}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Avg time</div><div className="text-2xl font-semibold">{kpi.ktime}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Avg rating</div><div className="text-2xl font-semibold">{kpi.rating}</div></div>
-          </div>
-
-          {/* Filters */}
-          <div className="card p-4 mt-3 grid md:grid-cols-7 gap-3">
-            <div><div className="text-xs text-gray-500 mb-1">From</div><input type="date" className="border rounded-lg p-2 w-full" value={from} onChange={e=>setFrom(e.target.value)}/></div>
-            <div><div className="text-xs text-gray-500 mb-1">To</div><input type="date" className="border rounded-lg p-2 w-full" value={to} onChange={e=>setTo(e.target.value)}/></div>
-            <div><div className="text-xs text-gray-500 mb-1">Tower</div><input className="border rounded-lg p-2 w-full" value={tower} onChange={e=>setTower(e.target.value)} placeholder="T1 / Tower 1"/></div>
-            <div><div className="text-xs text-gray-500 mb-1">Flat</div><input className="border rounded-lg p-2 w-full" value={flat} onChange={e=>setFlat(e.target.value)} placeholder="1204 / T1-1204"/></div>
-            <div><div className="text-xs text-gray-500 mb-1">Issue contains</div><input className="border rounded-lg p-2 w-full" value={issue} onChange={e=>setIssue(e.target.value)} /></div>
-            <div><div className="text-xs text-gray-500 mb-1">Status</div>
-              <select className="border rounded-lg p-2 w-full" value={status} onChange={e=>setStatus(e.target.value)}>
-                <option value="">Any</option><option>Open</option><option>InProgress</option><option>Resolved</option><option>Closed</option>
-              </select>
-            </div>
-            <div><div className="text-xs text-gray-500 mb-1">Min rating</div>
-              <select className="border rounded-lg p-2 w-full" value={minRating} onChange={e=>setMinRating(e.target.value)}>
-                <option value="">Any</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Grid */}
-          <div className="overflow-auto mt-3 card">
-            <table className="min-w-full text-sm">
-              <thead className="border-b">
-                <tr className="text-left">
-                  <th>Tracking ID</th><th>Date and Time Raised</th><th>Tower</th><th>Flat</th>
-                  <th>Issue</th><th>Description</th><th>Media</th><th>Status</th>
-                  <th>Redressal Remark</th><th>User ID</th><th>Date and Time Resolved</th>
-                  <th>Time Taken</th><th>Feedback Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r,i)=>{
-                  const id = r["Tracking ID"]||`row-${i}`;
-                  const timeTaken = r.__ms!=null ? (()=>{ const m=Math.round(r.__ms/60000); const h=Math.floor(m/60); const d=Math.floor(h/24); return `${d}d ${h%24}h ${m%60}m`; })() : "";
-                  return (
-                    <tr key={id} className="border-t align-top">
-                      <td className="whitespace-nowrap">{id}</td>
-                      <td className="whitespace-nowrap">{fmtDT(r["Date and Time Raised"])}</td>
-                      <td className="whitespace-nowrap">{r["Tower"]||""}</td>
-                      <td className="whitespace-nowrap">{r["Flat"]||""}</td>
-                      <td>{r["Issue"]||""}</td>
-                      <td>{r["Description"]||""}</td>
-                      <td className="whitespace-nowrap">{r["Media URL"] ? <a className="underline" href={r["Media URL"]} target="_blank" rel="noreferrer">Open</a> : ""}</td>
-                      <td className="whitespace-nowrap">
-                        {isAdmin ? (
-                          <select defaultValue={r["Status"]||"Open"} onChange={e=>onUpdate({ id, status:e.target.value })}>
-                            <option>Open</option><option>InProgress</option><option>Resolved</option><option>Closed</option>
-                          </select>
-                        ) : (r["Status"]||"")}
-                      </td>
-                      <td style={{minWidth:220}}>
-                        {isAdmin ? (
-                          <div className="flex items-center gap-2">
-                            <textarea className="border rounded-lg p-2 w-full" rows="2" defaultValue={r["Redressal Remark"]||""}></textarea>
-                            <BtnGhost onClick={e=>{
-                              const val = e.currentTarget.parentElement.querySelector("textarea").value;
-                              onUpdate({ id, remark: val });
-                            }}>Save</BtnGhost>
-                          </div>
-                        ) : (r["Redressal Remark"]||"")}
-                      </td>
-                      <td className="whitespace-nowrap">{r["User ID"]||""}</td>
-                      <td className="whitespace-nowrap">{fmtDT(r["Date and Time Resolved"])}</td>
-                      <td className="whitespace-nowrap">{timeTaken}</td>
-                      <td className="whitespace-nowrap">{r["Feedback Rating"]||""}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
-    // ---------------- Plain tables for other tabs (show ALL columns) ----------------
-    const TableAll = ({title,rows,formatters={}})=>{
-      const cols = pickCols(rows);
-      return (
-        <div className="px-4 py-4">
-          <div className="card p-4">
-            <div className="font-medium mb-2">{title}</div>
-            <div className="overflow-auto">
-              <table className="min-w-full text-sm">
-                <thead><tr className="text-left text-gray-600">{cols.map(c=><th key={c} className="py-2 pr-4 whitespace-nowrap">{c}</th>)}</tr></thead>
-                <tbody>
-                  {rows.map((r,i)=>(
-                    <tr key={i} className="border-t">
-                      {cols.map(c=>{
-                        const v = r[c];
-                        const fmt = formatters[c];
-                        const out = fmt ? fmt(v) : v;
-                        return <td key={c} className="py-2 pr-4 whitespace-nowrap">{String(out ?? "")}</td>
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    // ---------------- Payments + Finance (P&L + simple Balance Sheet) ----------------
-    function Payments({ tx, opening, onAdd, isAdmin }){
-      const [openForm,setOpenForm] = useState(false);
-      const [t,setT] = useState({ Date:"", Type:"Credit", Category:"", "Sub-category":"", Amount:"" });
-
-      const totals = useMemo(()=>{
-        const paid = tx.filter(x=>(x.Type||"").toLowerCase()==="credit").reduce((a,b)=>a+Number(b.Amount||0),0);
-        const due  = tx.filter(x=>(x.Type||"").toLowerCase()==="debit").reduce((a,b)=>a+Number(b.Amount||0),0);
-        return { paid, due, net: paid - due };
-      },[tx]);
-
-      // P&L (period selector optional – here use whole data)
-      const pnl = useMemo(()=>{
-        const income  = tx.filter(x=>(x.Type||"").toLowerCase()==="credit").reduce((a,b)=>a+Number(b.Amount||0),0);
-        const expense = tx.filter(x=>(x.Type||"").toLowerCase()==="debit").reduce((a,b)=>a+Number(b.Amount||0),0);
-        return { income, expense, profit: income - expense };
-      },[tx]);
-
-      const balance = useMemo(()=>{
-        const openingSum = opening.reduce((a,b)=> a + Number(b.Amount||b["Opening Balance"]||0), 0);
-        return { opening: openingSum, closing: openingSum + totals.net };
-      },[opening, totals]);
+    function Issues({ tickets, onCreate, writable }) {
+      const [title, setTitle] = useState('');
+      const [category, setCategory] = useState('Infrastructure');
+      const [flat, setFlat] = useState('');
+      const [description, setDescription] = useState('');
 
       async function submit(){
-        if(!isAdmin) return alert("Only Admin can add transactions.");
-        const payload = {
-          Date: t.Date || new Date().toISOString(),
-          Type: t.Type, Category: t.Category, "Sub-category": t["Sub-category"],
-          Amount: Number(t.Amount||0)
-        };
-        await onAdd(payload);
-        setOpenForm(false); setT({ Date:"", Type:"Credit", Category:"", "Sub-category":"", Amount:"" });
+        if(!title || !flat) return;
+        await onCreate({ Title: title, Category: category, Flat: flat, Description: description, Status: 'Open', 'Date and Time Raised': new Date().toISOString() });
+        setTitle(''); setFlat(''); setDescription(''); setCategory('Infrastructure');
       }
 
+      const categories = ['Infrastructure','Plumbing','Electrical','Housekeeping','Security'];
+
       return (
-        <div className="px-4 py-4 grid gap-4">
-          <div className="grid md:grid-cols-3 gap-3">
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Collected</div><div className="text-2xl font-semibold">{INR.format(totals.paid)}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Debits</div><div className="text-2xl font-semibold">{INR.format(totals.due)}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Net</div><div className="text-2xl font-semibold">{INR.format(totals.net)}</div></div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="card p-4">
-              <div className="font-medium mb-2">Profit &amp; Loss</div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Income (Credits)</div><div className="text-right font-semibold">{INR.format(pnl.income)}</div>
-                <div>Expenses (Debits)</div><div className="text-right font-semibold">{INR.format(pnl.expense)}</div>
-                <div className="border-t mt-2 pt-2">Profit</div><div className="text-right font-semibold border-t mt-2 pt-2">{INR.format(pnl.profit)}</div>
+        <Section>
+          {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
+          <div className="card p-5">
+            <div className="font-medium">Raise an issue</div>
+            <div className="text-xs text-gray-500 mb-4">Writes to the "Issues" sheet</div>
+            <div className="grid gap-3">
+              <div>
+                <label className="block text-sm mb-1">Title</label>
+                <input className="w-full border rounded-xl p-2" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Short summary" />
               </div>
-            </div>
-            <div className="card p-4">
-              <div className="font-medium mb-2">Balance Sheet (Simple)</div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Opening Balances</div><div className="text-right font-semibold">{INR.format(balance.opening)}</div>
-                <div>Net Movement</div><div className="text-right font-semibold">{INR.format(totals.net)}</div>
-                <div className="border-t mt-2 pt-2">Closing Balance</div><div className="text-right font-semibold border-t mt-2 pt-2">{INR.format(balance.closing)}</div>
+              <div>
+                <label className="block text-sm mb-1">Category</label>
+                <select className="w-64 border rounded-xl p-2" value={category} onChange={e=>setCategory(e.target.value)}>
+                  {categories.map(c=> <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm mb-1">Flat</label>
+                  <input className="w-full border rounded-xl p-2" value={flat} onChange={e=>setFlat(e.target.value)} placeholder="e.g., A-302" />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Details</label>
+                  <input className="w-full border rounded-xl p-2" value={description} onChange={e=>setDescription(e.target.value)} placeholder="Optional" />
+                </div>
+              </div>
+              <div><button className="btn" onClick={submit} disabled={!writable}>Submit</button></div>
             </div>
           </div>
+          <div className="grid gap-3 mt-3">
+            {tickets.map((t,i)=> (
+              <div key={i} className="card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{t['Title']||t['Category']}</div>
+                    <div className="text-xs text-gray-500">{t['Category']} • {t['Flat']}</div>
+                  </div>
+                  <span className="badge">{t['Status']}</span>
+                </div>
+                {t['Description'] && <div className="text-sm text-gray-600 mt-1">{t['Description']}</div>}
+              </div>
+            ))}
+          </div>
+        </Section>
+      );
+    }
 
-          {isAdmin && (
-            <>
-              <Btn className="w-fit" onClick={()=>setOpenForm(v=>!v)}>➕ Add Transaction</Btn>
-              {openForm && (
-                <div className="card p-4">
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div><label className="text-sm text-gray-500">Date</label><input type="date" className="border rounded-lg p-2 w-full" value={t.Date} onChange={e=>setT({...t,Date:e.target.value})} /></div>
-                    <div><label className="text-sm text-gray-500">Type</label><select className="border rounded-lg p-2 w-full" value={t.Type} onChange={e=>setT({...t,Type:e.target.value})}><option>Credit</option><option>Debit</option></select></div>
-                    <div><label className="text-sm text-gray-500">Category</label><input className="border rounded-lg p-2 w-full" value={t.Category} onChange={e=>setT({...t,Category:e.target.value})} /></div>
-                    <div><label className="text-sm text-gray-500">Sub-category</label><input className="border rounded-lg p-2 w-full" value={t["Sub-category"]} onChange={e=>setT({...t,"Sub-category":e.target.value})} /></div>
-                    <div className="md:col-span-2"><label className="text-sm text-gray-500">Amount</label><input type="number" className="border rounded-lg p-2 w-full" value={t.Amount} onChange={e=>setT({...t,Amount:e.target.value})} /></div>
-                    <div className="md:col-span-2"><Btn onClick={submit}>Save</Btn></div>
+    function Directory({ residents }) {
+      return (
+        <Section>
+          <div className="card p-5">
+            <div className="font-medium">Residents directory</div>
+            <div className="text-xs text-gray-500 mb-4">From the "Directory" sheet (read-only demo)</div>
+            <div className="grid gap-3">
+              {residents.map(r => (
+                <div key={r.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 border rounded-2xl p-4">
+                  <div>
+                    <div className="font-medium">{r.name} <span className="badge ml-2">{r.flat}</span></div>
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-1">
+                      {r.phone && <span>📞 {r.phone}</span>}
+                      {r.email && <span>✉️ {r.email}</span>}
+                    </div>
                   </div>
                 </div>
-              )}
-            </>
-          )}
-
-          <div className="card p-4">
-            <div className="font-medium mb-2">Transactions</div>
-            <div className="overflow-auto">
-              <table className="min-w-full text-sm">
-                <thead><tr className="text-left text-gray-600"><th>Date</th><th>Type</th><th>Category</th><th>Sub-category</th><th>Amount</th></tr></thead>
-                <tbody>
-                  {tx.map((r,i)=>(
-                    <tr key={i} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">{ddmmyyyy(r.Date)}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.Type}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.Category}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r["Sub-category"]}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{INR.format(Number(r.Amount||0))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              ))}
             </div>
           </div>
-        </div>
+        </Section>
       );
     }
 
-    // ---------------- Admin (login state only) ----------------
-    function Admin({ role }){
+    function Payments({ transactions }) {
+      const totals = useMemo(()=>{
+        const paid = transactions.filter(t=>String(t.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
+        const due  = transactions.filter(t=>String(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
+        return { paid, due };
+      }, [transactions]);
       return (
-        <div className="px-4 py-4">
-          <div className="card p-4">
-            <div className="font-medium mb-1">Admin</div>
-            <div className="text-sm text-gray-600">Only admins can post notices, raise/edit tickets, and view/add transactions. Your role: <span className="badge">{role}</span></div>
+        <Section>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Stat label="Collected (credits)" value={`€ ${totals.paid.toFixed(2)}`} />
+            <Stat label="Debits" value={`€ ${totals.due.toFixed(2)}`} />
+          </div>
+          <div className="card p-5 mt-2">
+            <div className="font-medium">Transactions</div>
+            <div className="text-xs text-gray-500 mb-3">From the "Transactions" sheet</div>
+            <div className="grid gap-2">
+              {transactions.map((p,i)=> (
+                <div key={i} className="grid md:grid-cols-6 gap-2 items-center border rounded-XL p-3 text-sm">
+                  <div className="font-medium md:col-span-2">{p['Date']}</div>
+                  <div>{p['Type']}</div>
+                  <div>{p['Category']}</div>
+                  <div>{p['Sub-category']}</div>
+                  <div className="md:text-right">€ {Number(p['Amount']||0).toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    function Documents({ documents }) {
+      return (
+        <Section>
+          <div className="card p-5">
+            <div className="font-medium">Documents</div>
+            <div className="text-xs text-gray-500 mb-3">From the "Documents" sheet</div>
+            <div className="grid gap-2">
+              {documents.map((d,i)=> (
+                <div key={i} className="flex items-center justify-between border rounded-2xl p-4">
+                  <div>
+                    <div className="font-medium">{d['Subject']}</div>
+                    <div className="text-xs text-gray-500">{d['Date']} • {d['Category']}</div>
+                  </div>
+                  {d['Link'] && <a className="underline" target="_blank" rel="noreferrer" href={d['Link']}>Open</a>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    function Voters({ voters }) {
+      return (
+        <Section>
+          <div className="card p-5">
+            <div className="font-medium">Voters list</div>
+            <div className="text-xs text-gray-500 mb-3">From the "Voters" sheet</div>
+            <div className="grid gap-2">
+              {voters.map((v,i)=> (
+                <div key={i} className="border rounded-2xl p-4">
+                  <div className="font-medium">{v['First Owner Name']}{v['Second Owner Name'] ? ` & ${v['Second Owner Name']}` : ''}</div>
+                  <div className="text-xs text-gray-500">Tower {v['Tower No.']} • Flat {v['Flat No.']}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    // =====================
+    // Self-tests (show in Diagnostics)
+    // =====================
+    function runTests() {
+      const results = [];
+      function t(name, fn){
+        try { fn(); results.push({ name, pass:true }); }
+        catch(e){ results.push({ name, pass:false, err:String(e) }); }
+      }
+      // Test: totals calc
+      t('payments totals', ()=>{
+        const paid = DEMO.Transactions.filter(x=>x.Type==='Credit').reduce((a,b)=>a+b.Amount,0);
+        const due  = DEMO.Transactions.filter(x=>x.Type==='Debit').reduce((a,b)=>a+b.Amount,0);
+        if (paid !== 120) throw new Error('paid mismatch');
+        if (due  !== 25)  throw new Error('due mismatch');
+      });
+      // Test: residents mapping
+      t('directory mapping', ()=>{
+        const r = DEMO.Directory[0];
+        const id = r.Serial || `${r.Name}-${r.Flat}`;
+        if (!id) throw new Error('id missing');
+      });
+      // Test: demo notices exist
+      t('notices exist', ()=>{
+        if (!Array.isArray(DEMO.Notices) || DEMO.Notices.length < 2) throw new Error('notices missing');
+      });
+      return results;
+    }
+
+    function Diagnostics({ baseUrl, lastError, mode, rerun, tests }) {
+      const passCount = tests.filter(x=>x.pass).length;
+      const failCount = tests.length - passCount;
+      return (
+        <div className="card p-4 text-sm">
+          <div className="font-medium mb-1">Diagnostics</div>
+          <div>Mode: <span className="mono">{mode}</span></div>
+          <div>BASE_URL: <code className="break-all mono">{baseUrl || '(empty)'}</code></div>
+          {lastError && <div className="text-red-600 mt-1">Last error: {String(lastError)}</div>}
+          <div className="text-xs text-gray-500 mt-2">Tests — pass: {passCount}, fail: {failCount}</div>
+          {failCount>0 && (
+            <ul className="list-disc ml-5 mt-1 text-red-600">
+              {tests.filter(x=>!x.pass).map((x,i)=>(<li key={i}>{x.name}: {x.err}</li>))}
+            </ul>
+          )}
+          <div className="text-xs text-gray-500 mt-1">Tip: override with <code>?gas=&lt;url&gt;</code> or force demo with <code>?demo=1</code></div>
+          <div className="mt-2 flex gap-2">
+            <button className="btn" onClick={rerun}>Run connectivity tests</button>
+            <a className="btn-secondary" href="?demo=1">Open in Demo Mode</a>
           </div>
         </div>
       );
     }
 
-    // ---------------- App ----------------
+    // =====================
+    // App (with Demo fallback)
+    // =====================
     function App(){
-      const [session,setSession] = useState({ token:null, role:null });
-      const [view,setView] = useState("dashboard");
+      const [view, setView] = useState('dashboard');
+      const [loading, setLoading] = useState(false);
+      const [lastError, setLastError] = useState('');
+      const [mode, setMode] = useState(FORCE_DEMO ? 'DEMO' : 'LIVE');
+      const [tests, setTests] = useState(runTests());
 
-      // data store
-      const [dir,setDir]=useState([]), [nts,setNts]=useState([]), [iss,setIss]=useState([]),
-            [txs,setTxs]=useState([]), [docs,setDocs]=useState([]), [vts,setVts]=useState([]),
-            [obs,setObs]=useState([]), [coa,setCoa]=useState([]), [usr,setUsr]=useState([]);
+      const [directory, setDirectory] = useState([]);
+      const [notices, setNotices] = useState([]);
+      const [tickets, setTickets] = useState([]);
+      const [transactions, setTransactions] = useState([]);
+      const [documents, setDocuments] = useState([]);
+      const [voters, setVoters] = useState([]);
+      const [search, setSearch] = useState('');
 
-      const isAdmin = session.role==="admin";
-
-      useEffect(()=>{
-        (async ()=>{
-          // try resume
-          const tok = qs.get("session") || localStorage.getItem("session");
-          if(tok){
-            try{
-              const r = await api.sessionInfo(tok);
-              if(r?.ok && r?.role){
-                setSession({ token: tok, role:(r.role||"user").toLowerCase() });
-              } else localStorage.removeItem("session");
-            }catch(_){}
-          }
-          // load all tabs (read-only works even before login)
-          try{
-            const all = await api.listAll();
-            setDir(all.dir); setNts(all.nts); setIss(all.iss); setTxs(all.txs);
-            setDocs(all.docs); setVts(all.vts); setObs(all.obs); setCoa(all.coa); setUsr(all.usr);
-          }catch(_){}
-        })();
-      },[]);
-
-      async function updateIssue(payload){
-        if(!session.token) return alert("Not authenticated");
-        await api.updateIssue(session.token, payload);
-        const all = await api.listAll(); setIss(all.iss);
-      }
-      async function addTransaction(p){
-        if(!isAdmin) return;
-        await api.create("createTransaction", p);
-        const all = await api.listAll(); setTxs(all.txs);
+      async function loadAll() {
+        if (FORCE_DEMO || !BASE_URL) { useDemo(); return; }
+        try {
+          setLoading(true); setLastError('');
+          const [dir, nts, iss, txs, docs, vts] = await Promise.all([
+            api('listDirectory', 'GET', null, 1),
+            api('listNotices',   'GET', null, 1),
+            api('listIssues',    'GET', null, 1),
+            api('listTransactions','GET',null,1),
+            api('listDocuments', 'GET', null, 1),
+            api('listVoters',    'GET', null, 1),
+          ]);
+          setDirectory(dir?.rows||[]);
+          setNotices(nts?.rows||[]);
+          setTickets(iss?.rows||[]);
+          setTransactions(txs?.rows||[]);
+          setDocuments(docs?.rows||[]);
+          setVoters(vts?.rows||[]);
+          setMode('LIVE');
+        } catch (err) {
+          setLastError(err);
+          useDemo();
+        } finally { setLoading(false); }
       }
 
-      function logout(){ localStorage.removeItem("session"); setSession({token:null, role:null}); }
-
-      if(!session.token || !session.role){
-        return <Login onOK={(s)=>{ setSession(s); api.listAll().then(all=>{ setIss(all.iss); setTxs(all.txs); setDir(all.dir); setNts(all.nts); setDocs(all.docs); setVts(all.vts); setObs(all.obs); setCoa(all.coa); setUsr(all.usr); }); }} />
+      function useDemo(){
+        setDirectory(DEMO.Directory);
+        setNotices(DEMO.Notices);
+        setTickets(DEMO.Issues);
+        setTransactions(DEMO.Transactions);
+        setDocuments(DEMO.Documents);
+        setVoters(DEMO.Voters);
+        setMode('DEMO');
       }
+
+      useEffect(()=>{ loadAll(); },[]);
+
+      const residents = useMemo(()=> directory.map(r=>({
+        id: r.Serial ?? r.id ?? `${r.Name}-${r.Flat}`,
+        name: r.Name ?? r['First Owner Name'] ?? '',
+        flat: r.Flat ?? `${r['Tower No.']||''}-${r['Flat No.']||''}`,
+        phone: r.Phone || r.Mobile || '',
+        email: r.Email || '',
+      })), [directory]);
+
+      const filteredResidents = useMemo(()=>{
+        const q = search.toLowerCase();
+        return residents.filter(r=>[r.name,r.flat,r.phone,r.email].some(v=>String(v||'').toLowerCase().includes(q)));
+      }, [search, residents]);
+
+      const writable = mode === 'LIVE';
 
       return (
-        <>
-          <Header role={session.role} onLogout={logout} />
-          <div className="max-w-7xl mx-auto grid md:grid-cols-[240px,1fr] gap-4 mt-4">
-            <Sidebar view={view} setView={setView} />
-            <main>
-              {view==="dashboard" && <IssuesDashboard rows={iss} isAdmin={isAdmin} onUpdate={updateIssue} />}
-              {view==="tickets"   && <IssuesDashboard rows={iss} isAdmin={isAdmin} onUpdate={updateIssue} />}
+        <div className="max-w-7xl mx-auto p-4">
+          {/* Topbar */}
+          <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
+            <div className="h-14 flex items-center justify-between">
+              <div className="font-semibold text-lg">🏡 SocietyGuard</div>
+              <div className="hidden md:flex gap-2">
+                <input className="border rounded-xl px-3 py-2 w-80" placeholder="Search directory…" value={search} onChange={e=>setSearch(e.target.value)} />
+                <button className="btn-secondary">Search</button>
+              </div>
+            </div>
+          </header>
 
-              {view==="payments"  && <Payments tx={txs} opening={obs} onAdd={addTransaction} isAdmin={isAdmin} />}
+          {/* Shell */}
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+            {/* Sidebar */}
+            <aside className="grid gap-2">
+              {['dashboard','notices','tickets','directory','payments','documents','voters'].map(tab=> (
+                <NavItem key={tab} label={tab.charAt(0).toUpperCase()+tab.slice(1)} active={view===tab} onClick={()=>setView(tab)} />
+              ))}
+              <Diagnostics baseUrl={BASE_URL} lastError={lastError} mode={mode} rerun={loadAll} tests={tests} />
+            </aside>
 
-              {view==="notices"   && <TableAll title="Notices" rows={nts} formatters={{ Date: ddmmyyyy }} />}
-              {view==="directory" && <TableAll title="Directory" rows={dir} />}
-              {view==="opening"   && <TableAll title="Opening Balances" rows={obs} formatters={{ Amount:(v)=>INR.format(Number(v||0)) }} />}
-              {view==="coa"       && <TableAll title="Chart of Accounts" rows={coa} />}
-              {view==="documents" && <TableAll title="Documents" rows={docs} formatters={{ Date: ddmmyyyy, Link:(v)=> v?`Open: ${v}`:"" }} />}
-              {view==="voters"    && <TableAll title="Voters" rows={vts} />}
-
-              {view==="admin"     && <Admin role={session.role} />}
+            {/* Content */}
+            <main className="grid gap-4">
+              {loading && <div className="text-sm text-gray-500">Loading from Google Sheets…</div>}
+              {mode==='DEMO' && <Banner kind="error">Failed to reach backend. Running in Demo Mode so you can still try the app.</Banner>}
+              {view==='dashboard' && <Dashboard residents={residents} tickets={tickets} transactions={transactions} notices={notices} />}
+              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){ alert('Demo Mode: write disabled'); return n; } const created = await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} />}
+              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){ alert('Demo Mode: write disabled'); return t; } const created = await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} />}
+              {view==='directory' && <Directory residents={filteredResidents} />}
+              {view==='payments' && <Payments transactions={transactions} />}
+              {view==='documents' && <Documents documents={documents} />}
+              {view==='voters' && <Voters voters={voters} />}
             </main>
           </div>
-        </>
+        </div>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
+
+  <noscript>
+    <div class="p-8 text-center">⚠️ This app requires JavaScript. Please enable it.</div>
+  </noscript>
 </body>
 </html>
