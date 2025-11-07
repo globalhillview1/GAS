@@ -5,7 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Hillview — Society Portal</title>
   <meta name="color-scheme" content="light" />
-  <link rel="icon" href="assets/favicon.ico" />
+
+  <!-- Favicons (files must be in the repo root as uploaded) -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png" />
+  <link rel="manifest" href="site.webmanifest" />
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -48,6 +56,7 @@
 <body class="bg-mist text-ink">
   <div id="root"></div>
 
+  <!-- App -->
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
 
@@ -106,16 +115,41 @@
       </div>
     );
 
+    // QuickSearch (debounced)
+    function QuickSearch({value,onChange,placeholder="Quick search…"}){
+      const [local,setLocal]=useState(value||"");
+      useEffect(()=>setLocal(value||""),[value]);
+      useEffect(()=>{
+        const t=setTimeout(()=>onChange(local),250);
+        return ()=>clearTimeout(t);
+      },[local]);
+      return (
+        <input
+          className="border rounded-xl px-3 py-2 w-80"
+          placeholder={placeholder}
+          value={local}
+          onChange={e=>setLocal(e.target.value)}
+        />
+      );
+    }
+
     // -------- dynamic grid editor (admin only)
-    function EditableGrid({ sheet, rows, isAdmin, onRefresh }){
-      // Collect ALL columns present
+    function EditableGrid({ sheet, rows, isAdmin, onRefresh, query }){
+      // all columns present
       const columns = useMemo(()=>{
         const set=new Set();
         rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
         return Array.from(set);
       },[rows]);
 
-      // Heuristic: key column per sheet
+      // filter rows by quick search across all fields
+      const filteredRows = useMemo(()=>{
+        const q=(query||"").trim().toLowerCase();
+        if(!q) return rows;
+        return rows.filter(r=>Object.values(r||{}).some(v=>String(v??'').toLowerCase().includes(q)));
+      },[rows,query]);
+
+      // key column heuristic
       const keyField = useMemo(()=>{
         const candidates = {
           Issues: ['Tracking ID','Id','ID'],
@@ -128,12 +162,13 @@
           ChartOfAccounts:['Code','ID'],
           Users:['Username','User','ID'],
         }[sheet] || ['ID','Serial Number','Tracking ID'];
-        return candidates.find(c=>rows[0] && c in rows[0]) || candidates[0];
-      },[sheet,rows]);
+        const r0 = filteredRows[0] || rows[0] || {};
+        return candidates.find(c=>c in r0) || candidates[0];
+      },[sheet,filteredRows,rows]);
 
-      // Local editable copies
-      const [draft, setDraft] = useState(()=>rows.map(r=>({...r})));
-      useEffect(()=>{ setDraft(rows.map(r=>({...r}))); },[rows]);
+      // editable copies
+      const [draft, setDraft] = useState(()=>filteredRows.map(r=>({...r})));
+      useEffect(()=>{ setDraft(filteredRows.map(r=>({...r}))); },[filteredRows]);
 
       function setCell(ridx, col, val){
         setDraft(d => { const cp=d.slice(); cp[ridx] = { ...cp[ridx], [col]: val }; return cp; });
@@ -142,9 +177,10 @@
       async function saveRow(ridx){
         if(!isAdmin) return;
         const row = draft[ridx] || {};
-        const keyVal = row[keyField] ?? rows[ridx]?.[keyField];
+        const src = filteredRows[ridx] || {};
+        const keyVal = row[keyField] ?? src[keyField];
         try{
-          await api.upsertRow(sheet, keyField, { ...rows[ridx], ...row, [keyField]: keyVal });
+          await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
           await onRefresh();
           alert('Saved');
         }catch(e){ alert('Save failed: '+e); }
@@ -193,6 +229,9 @@
                 </tr>
               </thead>
               <tbody>
+                {draft.length===0 && (
+                  <tr><td className="py-3 text-gray-500" colSpan={columns.length+(isAdmin?1:0)}>No rows match “{query}”.</td></tr>
+                )}
                 {draft.map((r,idx)=>(
                   <tr key={idx} className="border-t align-top">
                     {columns.map(h=>{
@@ -218,7 +257,7 @@
       );
     }
 
-    // -------- pages (each uses EditableGrid)
+    // -------- pages
     const PageShell = ({title, onBack, children})=>(
       <section className="grid gap-3">
         <BackBar title={title} onBack={onBack} />
@@ -262,6 +301,7 @@
       const [session,setSession]=useState({token:null, role:null, username:null});
       const [data,setData]=useState({ Directory:[], Notices:[], Issues:[], Transactions:[], Documents:[], Voters:[], OpeningBalances:[], ChartOfAccounts:[], Users:[] });
       const [busy,setBusy]=useState(false);
+      const [query,setQuery]=useState(""); // QUICK SEARCH (applies to active page)
       const isAdmin = (session.role==='admin');
 
       async function refresh(sheet){
@@ -297,15 +337,21 @@
         return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} backend={GAS} />;
       }
 
+      const currentRows = data[view] || [];
+
       return (
         <div className="max-w-7xl mx-auto p-4">
           <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
             <div className="h-14 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src="assets/brand-mark.png" className="w-8 h-8 rounded-md" alt="brand"/>
+                <img src="android-chrome-192x192.png" className="w-8 h-8 rounded-md" alt="brand"/>
                 <div className="font-semibold">Global Hillview, Sec-11, Sohna, Gurgaon</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                {/* QUICK SEARCH INPUT */}
+                {view!=='dashboard' && (
+                  <QuickSearch value={query} onChange={setQuery} />
+                )}
                 <span className="badge">Logged in: {session.role}</span>
                 <Ghost onClick={()=>{ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }}>Logout</Ghost>
               </div>
@@ -315,7 +361,7 @@
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             <aside className="grid gap-2">
               {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
-                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>setView(tab)}>
+                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>{ setView(tab); setQuery(''); }}>
                   {tab==='dashboard'?'Dashboard':tab}
                 </button>
               ))}
@@ -330,12 +376,13 @@
                 issues={data.Issues} directory={data.Directory} transactions={data.Transactions} notices={data.Notices} />}
 
               {view!=='dashboard' && (
-                <PageShell title={view} onBack={()=>setView('dashboard')}>
+                <PageShell title={view} onBack={()=>{ setView('dashboard'); setQuery(''); }}>
                   <EditableGrid
                     sheet={view}
-                    rows={data[view]||[]}
+                    rows={currentRows}
                     isAdmin={isAdmin}
                     onRefresh={()=>refresh(view)}
+                    query={query}
                   />
                 </PageShell>
               )}
@@ -360,7 +407,7 @@
           <div className="w-full max-w-md">
             <div className="card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <img src="assets/logo.png" className="w-10 h-10 rounded-md" alt="logo"/>
+                <img src="android-chrome-192x192.png" className="w-10 h-10 rounded-md" alt="logo"/>
                 <div className="font-semibold">Global Hillview — Society Portal</div>
               </div>
               <div className="grid gap-3">
@@ -376,7 +423,7 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
