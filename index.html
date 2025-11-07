@@ -6,24 +6,22 @@
   <title>Global Hillview — Society Portal</title>
   <meta name="color-scheme" content="light" />
 
-  <!-- Favicons (files must be in the repo root as uploaded) -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <!-- Favicons (files already in your repo root) -->
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
   <link rel="manifest" href="site.webmanifest" />
+  <link rel="shortcut icon" href="favicon.ico" />
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc", card:"#fff", border:"#e5e7eb" } } }
+      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc" } } }
     }
   </script>
 
-  <!-- React + Babel -->
+  <!-- React + Babel (JSX in browser) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -34,12 +32,12 @@
   </script>
 
   <style>
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
-    .btn  { background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem; }
-    .btn-ghost { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem; }
+    .card{ background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
+    .btn{ background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem; }
+    .btn-ghost{ background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem; }
     .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace }
-    .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace }
+    .spin{ border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite }
     @keyframes s{to{transform:rotate(360deg)}}
     .login-bg{
       min-height:100vh;
@@ -51,43 +49,58 @@
       animation:floaty 16s ease-in-out infinite alternate;
     }
     @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
+    /* Error overlay */
+    #errbox{position:fixed;inset:auto 12px 12px 12px;z-index:99999;background:#111827; color:#fff; border:1px solid #ef4444; padding:10px 12px; border-radius:12px; font:12px/1.4 ui-monospace,monospace; display:none; white-space:pre-wrap}
   </style>
 </head>
 <body class="bg-mist text-ink">
   <div id="root"></div>
+  <pre id="errbox"></pre>
 
   <!-- App -->
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
 
-    // -------- config
+    // -------- error overlay (so you never get a blank page again)
+    (function installErrorOverlay(){
+      const box = document.getElementById('errbox');
+      function show(e){
+        box.style.display='block';
+        box.textContent = '⚠️ Runtime error:\\n\\n' + (e?.message || e?.toString()) +
+          (e?.stack ? ('\\n\\n' + e.stack) : '');
+        console.error(e);
+      }
+      window.addEventListener('error', ev => show(ev.error || ev.message));
+      window.addEventListener('unhandledrejection', ev => show(ev.reason));
+    })();
+
+    // -------- config & utils
     const qs = new URLSearchParams(location.search);
     const GAS = (qs.get('gas') || window.ENV_GAS_URL || '').trim();
     const INR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 });
 
-    // -------- util
     async function fetchWithTimeout(url, opts={}, ms=12000){
       const ctl=new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
       try{ return await fetch(url,{...opts,signal:ctl.signal}); } finally{ clearTimeout(id); }
     }
     async function getJSON(action, extra={}){
+      if(!GAS) throw new Error('Missing GAS URL');
       const u=new URL(GAS); u.searchParams.set('action', action);
       for(const [k,v] of Object.entries(extra)) u.searchParams.set(k,v);
       const r=await fetchWithTimeout(u,{cache:'no-store'}); if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
       return r.json();
     }
     async function postPlain(body){
+      if(!GAS) throw new Error('Missing GAS URL');
       const r=await fetchWithTimeout(GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
       if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
       return r.json();
     }
 
     const api = {
-      // auth
-      async login(u,p){ try{ return await postPlain({op:'login', username:u, password:p}); } catch{ return getJSON('login',{u,p}); } },
-      async sessionInfo(token){ return postPlain({op:'sessionInfo', token}); },
+      login: (u,p)=> postPlain({op:'login', username:u, password:p}).catch(()=>getJSON('login',{u,p})),
+      sessionInfo: (t)=> postPlain({op:'sessionInfo', token:t}),
 
-      // list per sheet (your existing actions)
       list: {
         Directory: ()=>getJSON('listDirectory'),
         Notices: ()=>getJSON('listNotices'),
@@ -100,56 +113,31 @@
         Users: ()=>getJSON('listUsers').catch(()=>({rows:[]})),
       },
 
-      // generic create + upsert
-      async createRow(sheet, row){ return postPlain({ op:'createRow', sheet, row }); },
-      async upsertRow(sheet, key, row){ return postPlain({ op:'upsertRow', sheet, key, row }); },
+      createRow: (sheet,row)=> postPlain({op:'createRow', sheet, row}),
+      upsertRow: (sheet,key,row)=> postPlain({op:'upsertRow', sheet, key, row}),
     };
 
-    // -------- small atoms
-    const Btn = (p)=><button className={"btn "+(p.className||'')} {...p}>{p.children}</button>;
+    const Btn   = (p)=><button className={"btn "+(p.className||'')} {...p}>{p.children}</button>;
     const Ghost = (p)=><button className={"btn-ghost "+(p.className||'')} {...p}>{p.children}</button>;
-    const BackBar = ({onBack,title})=>(
+
+    const BackBar = ({onBack,title, right})=>(
       <div className="flex items-center justify-between">
-        <Ghost onClick={onBack}>← Back</Ghost>
-        <div className="text-sm text-gray-500">{title}</div>
+        <div className="flex items-center gap-2">
+          <Ghost onClick={onBack}>← Back</Ghost>
+          <div className="text-sm text-gray-500">{title}</div>
+        </div>
+        {right}
       </div>
     );
 
-    // QuickSearch (debounced)
-    function QuickSearch({value,onChange,placeholder="Quick search…"}){
-      const [local,setLocal]=useState(value||"");
-      useEffect(()=>setLocal(value||""),[value]);
-      useEffect(()=>{
-        const t=setTimeout(()=>onChange(local),250);
-        return ()=>clearTimeout(t);
-      },[local]);
-      return (
-        <input
-          className="border rounded-xl px-3 py-2 w-80"
-          placeholder={placeholder}
-          value={local}
-          onChange={e=>setLocal(e.target.value)}
-        />
-      );
-    }
-
-    // -------- dynamic grid editor (admin only)
-    function EditableGrid({ sheet, rows, isAdmin, onRefresh, query }){
-      // all columns present
+    // -------- grid with Quick Search
+    function EditableGrid({ sheet, rows, isAdmin, onRefresh }){
+      const [q, setQ] = useState('');
       const columns = useMemo(()=>{
-        const set=new Set();
-        rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
+        const set=new Set(); rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
         return Array.from(set);
       },[rows]);
 
-      // filter rows by quick search across all fields
-      const filteredRows = useMemo(()=>{
-        const q=(query||"").trim().toLowerCase();
-        if(!q) return rows;
-        return rows.filter(r=>Object.values(r||{}).some(v=>String(v??'').toLowerCase().includes(q)));
-      },[rows,query]);
-
-      // key column heuristic
       const keyField = useMemo(()=>{
         const candidates = {
           Issues: ['Tracking ID','Id','ID'],
@@ -162,108 +150,113 @@
           ChartOfAccounts:['Code','ID'],
           Users:['Username','User','ID'],
         }[sheet] || ['ID','Serial Number','Tracking ID'];
-        const r0 = filteredRows[0] || rows[0] || {};
-        return candidates.find(c=>c in r0) || candidates[0];
-      },[sheet,filteredRows,rows]);
+        return rows[0] ? (candidates.find(c=>c in rows[0]) || candidates[0]) : candidates[0];
+      },[sheet,rows]);
 
-      // editable copies
-      const [draft, setDraft] = useState(()=>filteredRows.map(r=>({...r})));
-      useEffect(()=>{ setDraft(filteredRows.map(r=>({...r}))); },[filteredRows]);
+      const filtered = useMemo(()=>{
+        if(!q) return rows;
+        const needle = q.toLowerCase();
+        return rows.filter(r => columns.some(c => String(r[c]||'').toLowerCase().includes(needle)));
+      }, [rows, q, columns]);
+
+      const [draft, setDraft] = useState(()=>rows.map(r=>({...r})));
+      useEffect(()=>{ setDraft(rows.map(r=>({...r}))); },[rows]);
 
       function setCell(ridx, col, val){
         setDraft(d => { const cp=d.slice(); cp[ridx] = { ...cp[ridx], [col]: val }; return cp; });
       }
-
       async function saveRow(ridx){
         if(!isAdmin) return;
         const row = draft[ridx] || {};
-        const src = filteredRows[ridx] || {};
-        const keyVal = row[keyField] ?? src[keyField];
-        try{
-          await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
-          await onRefresh();
-          alert('Saved');
-        }catch(e){ alert('Save failed: '+e); }
+        const keyVal = row[keyField] ?? rows[ridx]?.[keyField];
+        await api.upsertRow(sheet, keyField, { ...rows[ridx], ...row, [keyField]: keyVal });
+        await onRefresh();
+        alert('Saved');
       }
 
-      // new row form
       const emptyRow = Object.fromEntries(columns.map(c=>[c,'']));
       const [newRow, setNewRow] = useState(emptyRow);
-      useEffect(()=>{ const e=Object.fromEntries(columns.map(c=>[c,''])); setNewRow(e); },[columns.join('|')]);
+      useEffect(()=>{ setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); },[columns.join('|')]);
 
       async function addRow(){
         if(!isAdmin) return;
-        try{ await api.createRow(sheet, newRow); await onRefresh(); setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); alert('Added'); }
-        catch(e){ alert('Add failed: '+e); }
+        await api.createRow(sheet, newRow);
+        await onRefresh();
+        setNewRow(Object.fromEntries(columns.map(c=>[c,''])));
+        alert('Added');
       }
 
       return (
-        <div className="card p-4">
-          {!isAdmin && <div className="text-sm text-red-600 mb-2">Only admin can edit.</div>}
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="border rounded-xl px-3 py-2 w-full md:w-80"
+              placeholder="Quick search (filters all columns)…"
+              value={q}
+              onChange={e=>setQ(e.target.value)}
+            />
+            <span className="text-xs text-gray-500">{filtered.length} / {rows.length} rows</span>
+          </div>
 
-          {/* Add new */}
-          {isAdmin && (
-            <div className="mb-4">
-              <div className="font-medium mb-2">Add to {sheet}</div>
-              <div className="grid md:grid-cols-3 gap-2">
-                {columns.map(c=>(
-                  <div key={'add-'+c}>
-                    <div className="text-xs text-gray-500 mb-1">{c}</div>
-                    <input className="border rounded-lg p-2 w-full"
-                      value={newRow[c]??''} onChange={e=>setNewRow(r=>({...r,[c]:e.target.value}))}/>
-                  </div>
-                ))}
+          <div className="card p-4">
+            {!isAdmin && <div className="text-sm text-red-600 mb-2">Only admin can edit.</div>}
+
+            {isAdmin && (
+              <div className="mb-4">
+                <div className="font-medium mb-2">Add to {sheet}</div>
+                <div className="grid md:grid-cols-3 gap-2">
+                  {columns.map(c=>(
+                    <div key={'add-'+c}>
+                      <div className="text-xs text-gray-500 mb-1">{c}</div>
+                      <input className="border rounded-lg p-2 w-full"
+                        value={newRow[c]??''} onChange={e=>setNewRow(r=>({...r,[c]:e.target.value}))}/>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3"><Btn onClick={addRow}>Add</Btn></div>
+                <hr className="my-4"/>
               </div>
-              <div className="mt-3"><Btn onClick={addRow}>Add</Btn></div>
-              <hr className="my-4"/>
-            </div>
-          )}
+            )}
 
-          {/* Table */}
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-600">
-                  {columns.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
-                  {isAdmin && <th className="py-2 pr-4">Save</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {draft.length===0 && (
-                  <tr><td className="py-3 text-gray-500" colSpan={columns.length+(isAdmin?1:0)}>No rows match “{query}”.</td></tr>
-                )}
-                {draft.map((r,idx)=>(
-                  <tr key={idx} className="border-t align-top">
-                    {columns.map(h=>{
-                      const v = r[h] ?? '';
-                      const isLong = String(v).length > 60 || /[\n\r]/.test(String(v));
-                      return (
-                        <td key={h} className="py-2 pr-4 whitespace-nowrap">
-                          {isAdmin
-                            ? (isLong
-                                ? <textarea rows="2" className="border rounded-lg p-2 w-[320px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />
-                                : <input className="border rounded-lg p-2 w-[220px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />)
-                            : String(v)}
-                        </td>
-                      );
-                    })}
-                    {isAdmin && <td className="py-2 pr-4"><Ghost onClick={()=>saveRow(idx)}>Save</Ghost></td>}
+            <div className="overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-600">
+                    {columns.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
+                    {isAdmin && <th className="py-2 pr-4">Save</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filtered.map((r,idx)=>{
+                    // map idx from filtered to draft index
+                    const ridx = rows.indexOf(r);
+                    const rowDraft = draft[ridx] || r;
+                    return (
+                      <tr key={ridx} className="border-t align-top">
+                        {columns.map(h=>{
+                          const v = rowDraft[h] ?? '';
+                          const isLong = String(v).length > 60 || /[\n\r]/.test(String(v));
+                          return (
+                            <td key={h} className="py-2 pr-4 whitespace-nowrap">
+                              {isAdmin
+                                ? (isLong
+                                    ? <textarea rows="2" className="border rounded-lg p-2 w-[320px]" value={v} onChange={e=>setCell(ridx,h, e.target.value)} />
+                                    : <input className="border rounded-lg p-2 w-[220px]" value={v} onChange={e=>setCell(ridx,h, e.target.value)} />)
+                                : String(v)}
+                            </td>
+                          );
+                        })}
+                        {isAdmin && <td className="py-2 pr-4"><Ghost onClick={()=>saveRow(ridx)}>Save</Ghost></td>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       );
     }
-
-    // -------- pages
-    const PageShell = ({title, onBack, children})=>(
-      <section className="grid gap-3">
-        <BackBar title={title} onBack={onBack} />
-        {children}
-      </section>
-    );
 
     function Dashboard({issues, directory, transactions, notices}){
       const open = issues.filter(x=>(x.Status||'').toLowerCase()!=='closed').length;
@@ -295,13 +288,66 @@
       );
     }
 
-    // -------- app
+    function LoginScreen({ onSuccess }) {
+      const [u, setU] = useState('');
+      const [p, setP] = useState('');
+      const [err, setErr] = useState('');
+      const [busy, setBusy] = useState(false);
+
+      async function go() {
+        setBusy(true); setErr('');
+        try {
+          const r = await api.login(u, p);
+          if (r?.ok && r?.token) {
+            localStorage.setItem('session', r.token);
+            onSuccess({ token: r.token, role: (r.role || 'user').toLowerCase(), username: r.username || u });
+          } else setErr(r?.error || 'Invalid credentials');
+        } catch (e) { setErr(String(e)); }
+        finally { setBusy(false); }
+      }
+
+      return (
+        <div className="login-bg grid place-items-center p-6">
+          <div className="w-full max-w-md">
+            <div className="card p-8 shadow-2xl rounded-2xl"
+              style={{background:'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,240,255,0.95) 100%)'}}>
+              <div className="flex items-center gap-3 mb-6 justify-center">
+                <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-lg shadow-md" alt="logo"/>
+                <div className="text-xl font-bold text-gray-800 text-center">Global Hillview — Society Portal</div>
+              </div>
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Username</label>
+                  <input className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
+                         value={u} onChange={e=>setU(e.target.value)} placeholder="Enter username" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Password</label>
+                  <input type="password" className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
+                         value={p} onChange={e=>setP(e.target.value)} placeholder="Enter password" />
+                </div>
+                <button onClick={go} disabled={busy}
+                        className="btn w-full flex items-center justify-center gap-2 rounded-xl shadow-md hover:shadow-lg hover:brightness-105 transition">
+                  {busy && <span className="spin"></span>}
+                  <span>{busy ? 'Signing in…' : 'Sign in'}</span>
+                </button>
+                {err && <div className="text-red-600 text-center text-sm mt-2">{err}</div>}
+              </div>
+            </div>
+            <!-- backend info kept hidden for debugging -->
+            <div className="hidden text-white/70 text-xs mt-3">
+              Backend: <code className="mono">{GAS||'(not set)'}</code>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function App(){
-      const [view,setView]=useState('dashboard');               // dashboard | <sheetName>
+      const [view,setView]=useState('dashboard');
       const [session,setSession]=useState({token:null, role:null, username:null});
       const [data,setData]=useState({ Directory:[], Notices:[], Issues:[], Transactions:[], Documents:[], Voters:[], OpeningBalances:[], ChartOfAccounts:[], Users:[] });
       const [busy,setBusy]=useState(false);
-      const [query,setQuery]=useState(""); // QUICK SEARCH (applies to active page)
       const isAdmin = (session.role==='admin');
 
       async function refresh(sheet){
@@ -317,7 +363,6 @@
         } finally { setBusy(false); }
       }
 
-      // session boot
       useEffect(()=>{
         const tok = qs.get('session') || localStorage.getItem('session');
         (async ()=>{
@@ -332,26 +377,19 @@
         })();
       },[]);
 
-      // Login gate
       if(!session.token || !session.role){
-        return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} backend={GAS} />;
+        return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} />;
       }
-
-      const currentRows = data[view] || [];
 
       return (
         <div className="max-w-7xl mx-auto p-4">
           <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
             <div className="h-14 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src="android-chrome-192x192.png" className="w-8 h-8 rounded-md" alt="brand"/>
+                <img src="assets/brand-mark.png" className="w-8 h-8 rounded-md" alt="brand"/>
                 <div className="font-semibold">Global Hillview, Sec-11, Sohna, Gurgaon</div>
               </div>
-              <div className="flex items-center gap-3">
-                {/* QUICK SEARCH INPUT */}
-                {view!=='dashboard' && (
-                  <QuickSearch value={query} onChange={setQuery} />
-                )}
+              <div className="flex items-center gap-2">
                 <span className="badge">Logged in: {session.role}</span>
                 <Ghost onClick={()=>{ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }}>Logout</Ghost>
               </div>
@@ -361,13 +399,12 @@
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             <aside className="grid gap-2">
               {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
-                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>{ setView(tab); setQuery(''); }}>
+                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>setView(tab)}>
                   {tab==='dashboard'?'Dashboard':tab}
                 </button>
               ))}
               <div className="card p-3 text-xs text-gray-500">
-                Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
-                {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
+                {busy ? <div className="mt-1 flex items-center gap-2"><span className="spin"></span> Loading…</div> : 'Ready'}
               </div>
             </aside>
 
@@ -376,15 +413,10 @@
                 issues={data.Issues} directory={data.Directory} transactions={data.Transactions} notices={data.Notices} />}
 
               {view!=='dashboard' && (
-                <PageShell title={view} onBack={()=>{ setView('dashboard'); setQuery(''); }}>
-                  <EditableGrid
-                    sheet={view}
-                    rows={currentRows}
-                    isAdmin={isAdmin}
-                    onRefresh={()=>refresh(view)}
-                    query={query}
-                  />
-                </PageShell>
+                <div className="grid gap-3">
+                  <BackBar title={view} onBack={()=>setView('dashboard')} />
+                  <EditableGrid sheet={view} rows={data[view]||[]} isAdmin={isAdmin} onRefresh={()=>refresh(view)} />
+                </div>
               )}
             </main>
           </div>
@@ -392,104 +424,7 @@
       );
     }
 
-    function LoginScreen({ onSuccess }) {
-  const [u, setU] = useState('');
-  const [p, setP] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function go() {
-    setBusy(true);
-    setErr('');
-    try {
-      const r = await api.login(u, p);
-      if (r?.ok && r?.token) {
-        localStorage.setItem('session', r.token);
-        onSuccess({
-          token: r.token,
-          role: (r.role || 'user').toLowerCase(),
-          username: r.username || u,
-        });
-      } else setErr(r?.error || 'Invalid credentials');
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="login-bg grid place-items-center p-6">
-      <div className="w-full max-w-md">
-        <div
-          className="card p-8 shadow-2xl rounded-2xl"
-          style={{
-            background:
-              'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,240,255,0.95) 100%)',
-          }}
-        >
-          <div className="flex items-center gap-3 mb-6 justify-center">
-            <img
-              src="android-chrome-192x192.png"
-              className="w-12 h-12 rounded-lg shadow-md"
-              alt="Global Hillview logo"
-            />
-            <div className="text-xl font-bold text-gray-800 text-center">
-              Global Hillview — Society Portal
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">Username</label>
-              <input
-                className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
-                value={u}
-                onChange={(e) => setU(e.target.value)}
-                placeholder="Enter username"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">Password</label>
-              <input
-                type="password"
-                className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
-                value={p}
-                onChange={(e) => setP(e.target.value)}
-                placeholder="Enter password"
-              />
-            </div>
-            <button
-              onClick={go}
-              disabled={busy}
-              className="btn w-full flex items-center justify-center gap-2 rounded-xl shadow-md hover:shadow-lg hover:brightness-105 transition"
-            >
-              {busy && <span className="spin"></span>}
-              <span>{busy ? 'Signing in…' : 'Sign in'}</span>
-            </button>
-
-            {err && (
-              <div className="text-red-600 text-center text-sm mt-2">
-                {err}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Hidden backend info (keep for debugging, not shown) */}
-        <div className="hidden text-white/70 text-xs mt-3">
-          Backend: <code className="mono">{window.ENV_GAS_URL}</code>
-        </div>
-      </div>
-    </div>
-    <p className="text-gray-400 text-xs text-center mt-4 italic">
-  © Global Hillview RWA Portal
-</p>
-  );
-}
-
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
