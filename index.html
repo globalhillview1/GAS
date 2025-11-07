@@ -365,10 +365,13 @@
                   {tab==='dashboard'?'Dashboard':tab}
                 </button>
               ))}
-              <div className="card p-3 text-xs text-gray-500">
-                Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
-                {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
-              </div>
+              {qs.get('debug') === '1' && (
+  <div className="card p-3 text-xs text-gray-500">
+    Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
+    {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
+  </div>
+)}
+
             </aside>
 
             <main className="grid gap-4">
