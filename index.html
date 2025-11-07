@@ -97,14 +97,29 @@
     };
 
     // Fetch with timeout + retries
-    async function fetchWithTimeout(url, opts={}, timeoutMs=10000){
-      const controller=new AbortController(); const id=setTimeout(()=>controller.abort(), timeoutMs);
-      try{ return await fetch(url,{...opts,signal:controller.signal}); } finally{ clearTimeout(id); }
+    async function fetchWithTimeout(url, opts={}, timeoutMs=30000){
+      // Increase timeout to 30s — GAS cold starts can exceed 10–12s.
+      const controller=new AbortController();
+      const id=setTimeout(()=>controller.abort('timeout'), timeoutMs);
+      try{ return await fetch(url,{...opts,signal:controller.signal}); }
+      finally{ clearTimeout(id); }
+    }); } finally{ clearTimeout(id); }
     }
-    async function api(action, method='GET', payload, retries=1){
+    async function api(action, method='GET', payload, retries=2){
       if(!BASE_URL) throw new Error('Missing BASE_URL');
       const url=new URL(BASE_URL); url.searchParams.set('action', action);
       const headers = method==='POST' ? {'Content-Type':'text/plain;charset=utf-8'} : {};
+      const opts={method, headers}; if(method==='POST' && payload) opts.body=JSON.stringify(payload);
+      let lastErr;
+      for(let i=0;i<=retries;i++){
+        try{
+          const res=await fetchWithTimeout(url.toString(), opts, 30000);
+          if(!res.ok) throw new Error(await res.text());
+          return await res.json();
+        }catch(e){ lastErr=e; if(i===retries) throw e; await new Promise(r=>setTimeout(r, 800*(i+1))); }
+      }
+      throw lastErr;
+    } : {};
       const opts={method, headers}; if(method==='POST' && payload) opts.body=JSON.stringify(payload);
       let lastErr;
       for(let i=0;i<=retries;i++){
@@ -529,6 +544,39 @@
         if(FORCE_DEMO || !BASE_URL){ useDemo(); return; }
         try{
           setLoading(true); setLastError('');
+          // Warm-up ping (short timeout) to reduce cold-start latency
+          try { await api('listIssues','GET',null,0); } catch(_) {}
+          // Fetch everything, but don't fail the whole load on one slow/failed tab
+          const calls = [
+            ['dir', ()=>api('listDirectory')],
+            ['nts', ()=>api('listNotices')],
+            ['iss', ()=>api('listIssues')],
+            ['txs', ()=>api('listTransactions')],
+            ['docs', ()=>api('listDocuments')],
+            ['vts', ()=>api('listVoters')],
+            ['obs', ()=>api('listOpeningBalances')],
+            ['coa', ()=>api('listChartOfAccounts')],
+            ['usr', ()=>api('listUsers')],
+          ];
+          const settled = await Promise.allSettled(calls.map(([k,fn])=>fn()));
+          const pick = (idx)=> settled[idx].status==='fulfilled' ? (settled[idx].value?.rows||[]) : [];
+          setDirectory(pick(0));
+          setNotices(pick(1));
+          setTickets(pick(2));
+          setTransactions(pick(3));
+          setDocuments(pick(4));
+          setVoters(pick(5));
+          setOpeningBalances(pick(6));
+          setChart(pick(7));
+          setUsers(pick(8));
+          const anyErr = settled.find(s=>s.status==='rejected');
+          if(anyErr) setLastError(anyErr.reason||'Partial load — some tabs timed out');
+          setMode('LIVE');
+        }catch(err){ setLastError(err); useDemo(); }
+        finally{ setLoading(false); }
+      }
+        try{
+          setLoading(true); setLastError('');
           const [dir,nts,iss,txs,docs,vts,obs,coa,us]=await Promise.all([
             api('listDirectory','GET',null,1),
             api('listNotices','GET',null,1),
@@ -578,6 +626,7 @@
             <main className="grid gap-4">
               {loading && <div className="text-sm text-gray-500">Loading from Google Sheets…</div>}
               {mode==='DEMO' && <Banner kind="error">Failed to reach backend. Running in Demo Mode so you can still try the app.</Banner>}
+              {mode==='LIVE' && lastError && <Banner kind="error">Some data timed out. Page is using what loaded. Details: {String(lastError)}</Banner>}
               {view==='dashboard' && <Dashboard residents={residents} tickets={tickets} transactions={transactions} notices={notices} />}
               {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){alert('Demo Mode: write disabled'); return n;} const created=await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
               {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){alert('Demo Mode: write disabled'); return t;} const created=await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
