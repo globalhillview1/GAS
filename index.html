@@ -19,7 +19,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc", card:"#fff", border:"#e5e7eb" } } }
+      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc", card:"#fff", border:"#e5e7eb", accent:"#2563eb", success:"#16a34a", warn:"#f59e0b" } } }
     }
   </script>
 
@@ -34,23 +34,91 @@
   </script>
 
   <style>
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
-    .btn  { background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem; }
-    .btn-ghost { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem; }
+    :root {
+      --card-bg: #fff;
+      --card-border: #e5e7eb;
+      --accent: #2563eb;
+      --muted: #6b7280;
+    }
+    html,body,#root{height:100%}
+    .card {
+      background:var(--card-bg);
+      border:1px solid var(--card-border);
+      border-radius:14px;
+      box-shadow: 0 6px 18px rgba(12, 18, 28, 0.06);
+    }
+    .btn  {
+      background:#0f172a;
+      color:#fff;
+      border-radius:12px;
+      padding:.55rem .95rem;
+      transition:transform .06s ease, box-shadow .06s ease, opacity .12s;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn[disabled]{ opacity:.6; pointer-events:none; }
+    .btn-ghost { background:#f8fafc; color:#0f172a; border-radius:12px; padding:.45rem .85rem; }
     .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace }
-    .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite }
+    .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite; display:inline-block }
     @keyframes s{to{transform:rotate(360deg)}}
+
+    /* nicer login background and card */
     .login-bg{
       min-height:100vh;
       background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.35), transparent 40%),
-        radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.35), transparent 45%),
-        radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.35), transparent 40%),
-        #0b1220;
+        radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.28), transparent 40%),
+        radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.28), transparent 45%),
+        radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.28), transparent 40%),
+        linear-gradient(180deg,#071124 0%, #081822 60%);
       animation:floaty 16s ease-in-out infinite alternate;
     }
     @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
+
+    /* focus styles for accessibility */
+    :focus { outline: none; }
+    :focus-visible { box-shadow: 0 0 0 4px rgba(37,99,235,0.12); border-radius:8px; }
+
+    /* table improvements */
+    table.min-w-full { border-collapse: separate; border-spacing: 0; }
+    table thead th {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+      backdrop-filter: blur(3px);
+      z-index: 1;
+    }
+    td, th { padding: 12px 10px; vertical-align: top; }
+    td { white-space: normal; word-break: break-word; }
+
+    /* responsive table wrap for small screens: switch to stacked cards */
+    @media (max-width: 720px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display:none; }
+      tr { margin-bottom: 0.75rem; border-radius: 10px; padding: 0.5rem; background: rgba(255,255,255,0.6); border:1px solid rgba(225,225,225,0.9); }
+      td { display:flex; justify-content:space-between; padding: .6rem; }
+      td::before { font-weight:600; color:var(--muted); margin-right: 0.5rem; }
+    }
+
+    /* toast */
+    .toast-wrap { position: fixed; right: 18px; bottom: 24px; z-index: 9999; display:flex; flex-direction:column; gap:8px; }
+    .toast {
+      min-width: 220px;
+      max-width: 360px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: white;
+      box-shadow: 0 6px 18px rgba(12, 18, 28, 0.12);
+      font-size: 0.95rem;
+    }
+    .toast.info { background: #111827; }
+    .toast.success { background: #059669; }
+    .toast.error { background: #dc2626; }
+    .busy-overlay {
+      position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(7,9,10,0.18); z-index: 999;
+    }
+
+    /* small helpers */
+    .text-muted { color: #6b7280; }
   </style>
 </head>
 <body class="bg-mist text-ink">
@@ -58,7 +126,7 @@
 
   <!-- App -->
   <script type="text/babel" data-presets="env,react">
-    const { useEffect, useMemo, useState } = React;
+    const { useEffect, useMemo, useState, useRef } = React;
 
     // -------- config
     const qs = new URLSearchParams(location.search);
@@ -71,12 +139,14 @@
       try{ return await fetch(url,{...opts,signal:ctl.signal}); } finally{ clearTimeout(id); }
     }
     async function getJSON(action, extra={}){
-      const u=new URL(GAS); u.searchParams.set('action', action);
+      const u=new URL(GAS); if(!GAS) throw new Error('Backend not configured');
+      u.searchParams.set('action', action);
       for(const [k,v] of Object.entries(extra)) u.searchParams.set(k,v);
       const r=await fetchWithTimeout(u,{cache:'no-store'}); if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
       return r.json();
     }
     async function postPlain(body){
+      if(!GAS) throw new Error('Backend not configured');
       const r=await fetchWithTimeout(GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
       if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
       return r.json();
@@ -110,13 +180,27 @@
     const Ghost = (p)=><button className={"btn-ghost "+(p.className||'')} {...p}>{p.children}</button>;
     const BackBar = ({onBack,title})=>(
       <div className="flex items-center justify-between">
-        <Ghost onClick={onBack}>← Back</Ghost>
-        <div className="text-sm text-gray-500">{title}</div>
+        <Ghost onClick={onBack} aria-label="Back">← Back</Ghost>
+        <div className="text-sm text-muted">{title}</div>
       </div>
     );
 
+    // Minimal toast system (non-blocking)
+    function showToast(message, type='info', timeout=3200){
+      const wrapId = '__toast_wrap';
+      let wrap = document.getElementById(wrapId);
+      if(!wrap){
+        wrap = document.createElement('div'); wrap.id = wrapId;
+        wrap.className = 'toast-wrap'; document.body.appendChild(wrap);
+      }
+      const t = document.createElement('div');
+      t.className = 'toast ' + (type||'info'); t.textContent = message;
+      wrap.appendChild(t);
+      setTimeout(()=>{ t.style.transition='opacity .25s'; t.style.opacity='0'; setTimeout(()=>t.remove(),250); }, timeout);
+    }
+
     // QuickSearch (debounced)
-    function QuickSearch({value,onChange,placeholder="Quick search…"}){
+    function QuickSearch({value,onChange,placeholder="Quick search…", inputRef}){
       const [local,setLocal]=useState(value||"");
       useEffect(()=>setLocal(value||""),[value]);
       useEffect(()=>{
@@ -124,12 +208,17 @@
         return ()=>clearTimeout(t);
       },[local]);
       return (
-        <input
-          className="border rounded-xl px-3 py-2 w-80"
-          placeholder={placeholder}
-          value={local}
-          onChange={e=>setLocal(e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            aria-label="Quick search"
+            ref={inputRef}
+            className="border rounded-xl px-3 py-2 w-64"
+            placeholder={placeholder}
+            value={local}
+            onChange={e=>setLocal(e.target.value)}
+          />
+          <button title="Clear" className="text-muted" onClick={()=>{ setLocal(''); onChange(''); }}>✕</button>
+        </div>
       );
     }
 
@@ -175,15 +264,29 @@
       }
 
       async function saveRow(ridx){
-        if(!isAdmin) return;
+        if(!isAdmin) { showToast('Only admin can save', 'error'); return; }
         const row = draft[ridx] || {};
         const src = filteredRows[ridx] || {};
         const keyVal = row[keyField] ?? src[keyField];
         try{
           await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
           await onRefresh();
-          alert('Saved');
-        }catch(e){ alert('Save failed: '+e); }
+          showToast('Row saved', 'success');
+        }catch(e){ showToast('Save failed: '+String(e), 'error'); }
+      }
+
+      async function saveAll(){
+        if(!isAdmin) { showToast('Only admin can save', 'error'); return; }
+        try{
+          for(let i=0;i<draft.length;i++){
+            const row = draft[i] || {};
+            const src = filteredRows[i] || {};
+            const keyVal = row[keyField] ?? src[keyField];
+            await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
+          }
+          await onRefresh();
+          showToast('All rows saved', 'success');
+        }catch(e){ showToast('Save all failed: '+String(e), 'error'); }
       }
 
       // new row form
@@ -192,14 +295,23 @@
       useEffect(()=>{ const e=Object.fromEntries(columns.map(c=>[c,''])); setNewRow(e); },[columns.join('|')]);
 
       async function addRow(){
-        if(!isAdmin) return;
-        try{ await api.createRow(sheet, newRow); await onRefresh(); setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); alert('Added'); }
-        catch(e){ alert('Add failed: '+e); }
+        if(!isAdmin) { showToast('Only admin can add', 'error'); return; }
+        try{ await api.createRow(sheet, newRow); await onRefresh(); setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); showToast('Added', 'success'); }
+        catch(e){ showToast('Add failed: '+String(e), 'error'); }
       }
 
       return (
         <div className="card p-4">
-          {!isAdmin && <div className="text-sm text-red-600 mb-2">Only admin can edit.</div>}
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-medium mb-1">{sheet} <span className="text-sm text-muted">({filteredRows.length} shown / {rows.length})</span></div>
+              {!isAdmin && <div className="text-sm text-red-600">Read-only: admin required to edit.</div>}
+            </div>
+            <div className="flex items-center gap-2">
+              {isAdmin && <Ghost onClick={saveAll} aria-label="Save all">Save all</Ghost>}
+              <div className="text-xs text-muted">{/* placeholder for future actions */}</div>
+            </div>
+          </div>
 
           {/* Add new */}
           {isAdmin && (
@@ -208,7 +320,7 @@
               <div className="grid md:grid-cols-3 gap-2">
                 {columns.map(c=>(
                   <div key={'add-'+c}>
-                    <div className="text-xs text-gray-500 mb-1">{c}</div>
+                    <div className="text-xs text-muted mb-1">{c}</div>
                     <input className="border rounded-lg p-2 w-full"
                       value={newRow[c]??''} onChange={e=>setNewRow(r=>({...r,[c]:e.target.value}))}/>
                   </div>
@@ -219,18 +331,18 @@
             </div>
           )}
 
-          {/* Table */}
+          {/* Table / Rows */}
           <div className="overflow-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-sm" role="table" aria-label={sheet + " table"}>
               <thead>
-                <tr className="text-left text-gray-600">
+                <tr className="text-left text-muted">
                   {columns.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
                   {isAdmin && <th className="py-2 pr-4">Save</th>}
                 </tr>
               </thead>
               <tbody>
-                {draft.length===0 && (
-                  <tr><td className="py-3 text-gray-500" colSpan={columns.length+(isAdmin?1:0)}>No rows match “{query}”.</td></tr>
+                {filteredRows.length===0 && (
+                  <tr><td className="py-3 text-muted" colSpan={columns.length+(isAdmin?1:0)}>No rows match “{query}”.</td></tr>
                 )}
                 {draft.map((r,idx)=>(
                   <tr key={idx} className="border-t align-top">
@@ -238,12 +350,12 @@
                       const v = r[h] ?? '';
                       const isLong = String(v).length > 60 || /[\n\r]/.test(String(v));
                       return (
-                        <td key={h} className="py-2 pr-4 whitespace-nowrap">
+                        <td key={h} className="py-2 pr-4">
                           {isAdmin
                             ? (isLong
-                                ? <textarea rows="2" className="border rounded-lg p-2 w-[320px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />
-                                : <input className="border rounded-lg p-2 w-[220px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />)
-                            : String(v)}
+                                ? <textarea rows="2" className="border rounded-lg p-2 w-full" value={v} onChange={e=>setCell(idx,h, e.target.value)} />
+                                : <input className="border rounded-lg p-2 w-full" value={v} onChange={e=>setCell(idx,h, e.target.value)} />)
+                            : <div className="text-sm">{String(v)}</div>}
                         </td>
                       );
                     })}
@@ -272,10 +384,10 @@
       return (
         <div className="grid gap-3">
           <div className="grid md:grid-cols-4 gap-3">
-            <div className="card p-4"><div className="text-xs text-gray-500">Residents</div><div className="text-2xl font-semibold">{directory.length}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500">Open issues</div><div className="text-2xl font-semibold">{open}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500">Collected</div><div className="text-2xl font-semibold">{INR.format(paid)}</div></div>
-            <div className="card p-4"><div className="text-xs text-gray-500">Debits</div><div className="text-2xl font-semibold">{INR.format(deb)}</div></div>
+            <div className="card p-4"><div className="text-xs text-muted">Residents</div><div className="text-2xl font-semibold">{directory.length}</div></div>
+            <div className="card p-4"><div className="text-xs text-muted">Open issues</div><div className="text-2xl font-semibold">{open}</div></div>
+            <div className="card p-4"><div className="text-xs text-muted">Collected</div><div className="text-2xl font-semibold">{INR.format(paid)}</div></div>
+            <div className="card p-4"><div className="text-xs text-muted">Debits</div><div className="text-2xl font-semibold">{INR.format(deb)}</div></div>
           </div>
           <div className="card p-4">
             <div className="font-medium mb-2">Latest notices</div>
@@ -284,7 +396,7 @@
                 <div key={i} className="flex items-center justify-between border rounded-xl p-3">
                   <div>
                     <div className="font-medium">{n['Subject']}</div>
-                    <div className="text-xs text-gray-500">{n['Date']}</div>
+                    <div className="text-xs text-muted">{n['Date']}</div>
                   </div>
                   <span className="badge">{n['Serial Number']||i+1}</span>
                 </div>
@@ -303,6 +415,7 @@
       const [busy,setBusy]=useState(false);
       const [query,setQuery]=useState(""); // QUICK SEARCH (applies to active page)
       const isAdmin = (session.role==='admin');
+      const searchRef = useRef(null);
 
       async function refresh(sheet){
         setBusy(true);
@@ -332,6 +445,18 @@
         })();
       },[]);
 
+      // keyboard shortcut "/" to focus quick search when not on dashboard
+      useEffect(()=>{
+        function onKey(e){
+          if(e.key === '/' && view !== 'dashboard' && document.activeElement.tagName.toLowerCase() !== 'input'){
+            e.preventDefault();
+            searchRef.current?.focus();
+          }
+        }
+        window.addEventListener('keydown', onKey);
+        return ()=>window.removeEventListener('keydown', onKey);
+      },[view]);
+
       // Login gate
       if(!session.token || !session.role){
         return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} backend={GAS} />;
@@ -340,20 +465,26 @@
       const currentRows = data[view] || [];
 
       return (
-        <div className="max-w-7xl mx-auto p-4">
-          <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
-            <div className="h-14 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto p-4 min-h-screen">
+          <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur mb-4">
+            <div className="h-14 flex items-center justify-between px-2">
               <div className="flex items-center gap-3">
-                <img src="android-chrome-192x192.png" className="w-8 h-8 rounded-md" alt="brand"/>
-                <div className="font-semibold">Global Hillview, Sec-11, Sohna, Gurgaon</div>
+                <img src="android-chrome-192x192.png" className="w-10 h-10 rounded-md" alt="brand"/>
+                <div>
+                  <div className="font-semibold">Global Hillview</div>
+                  <div className="text-xs text-muted">Sec-11, Sohna, Gurgaon</div>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 {/* QUICK SEARCH INPUT */}
                 {view!=='dashboard' && (
-                  <QuickSearch value={query} onChange={setQuery} />
+                  <QuickSearch value={query} onChange={setQuery} inputRef={searchRef} />
                 )}
-                <span className="badge">Logged in: {session.role}</span>
-                <Ghost onClick={()=>{ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }}>Logout</Ghost>
+                <div className={`px-2 py-1 rounded-md text-white text-xs ${session.role==='admin' ? 'bg-accent' : 'bg-gray-500'}`}> {session.role} </div>
+                <div className="text-sm text-muted">Hi, {session.username}</div>
+                <Ghost onClick={()=>{
+                  if(confirm('Logout now?')){ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }
+                }}>Logout</Ghost>
               </div>
             </div>
           </header>
@@ -361,17 +492,18 @@
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             <aside className="grid gap-2">
               {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
-                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>{ setView(tab); setQuery(''); }}>
+                <button key={tab}
+                  className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`}
+                  onClick={()=>{ setView(tab); setQuery(''); }}>
                   {tab==='dashboard'?'Dashboard':tab}
                 </button>
               ))}
               {qs.get('debug') === '1' && (
-  <div className="card p-3 text-xs text-gray-500">
-    Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
-    {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
-  </div>
-)}
-
+                <div className="card p-3 text-xs text-muted">
+                  Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
+                  {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
+                </div>
+              )}
             </aside>
 
             <main className="grid gap-4">
@@ -391,6 +523,15 @@
               )}
             </main>
           </div>
+
+          {busy && (
+            <div className="busy-overlay" aria-hidden>
+              <div className="card p-5 flex items-center gap-3">
+                <span className="spin" aria-hidden></span>
+                <div>Loading…</div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -401,7 +542,7 @@
         setBusy(true); setErr('');
         try{
           const r=await api.login(u,p);
-          if(r?.ok && r?.token){ localStorage.setItem('session', r.token); onSuccess({token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u}); }
+          if(r?.ok && r?.token){ localStorage.setItem('session', r.token); onSuccess({token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u}); showToast('Welcome back', 'success'); }
           else setErr(r?.error||'Invalid credentials');
         }catch(e){ setErr(String(e)); } finally{ setBusy(false); }
       }
@@ -410,17 +551,30 @@
           <div className="w-full max-w-md">
             <div className="card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <img src="android-chrome-192x192.png" className="w-10 h-10 rounded-md" alt="logo"/>
-                <div className="font-semibold">Global Hillview — Society Portal</div>
+                <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-md" alt="logo"/>
+                <div>
+                  <div className="font-semibold">Global Hillview — Society Portal</div>
+                  <div className="text-xs text-muted">Sign in to manage society data</div>
+                </div>
               </div>
               <div className="grid gap-3">
-                <div><div className="text-sm text-gray-500">Username</div><input className="border rounded-xl p-2 w-full" value={u} onChange={e=>setU(e.target.value)} autoFocus/></div>
-                <div><div className="text-sm text-gray-500">Password</div><input type="password" className="border rounded-xl p-2 w-full" value={p} onChange={e=>setP(e.target.value)}/></div>
-                <Btn onClick={go} disabled={busy} className="flex items-center gap-2 justify-center">{busy&&<span className="spin"></span>}<span>{busy?'Signing in…':'Sign in'}</span></Btn>
+                <div>
+                  <label className="text-sm text-muted mb-1 block">Username</label>
+                  <input className="border rounded-xl p-2 w-full" value={u} onChange={e=>setU(e.target.value)} autoFocus/>
+                </div>
+                <div>
+                  <label className="text-sm text-muted mb-1 block">Password</label>
+                  <input type="password" className="border rounded-xl p-2 w-full" value={p} onChange={e=>setP(e.target.value)}/>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Btn onClick={go} disabled={busy} className="flex items-center gap-2 justify-center">{busy&&<span className="spin"></span>}<span>{busy?'Signing in…':'Sign in'}</span></Btn>
+                  <Ghost onClick={()=>{ setU('demo'); setP('demo'); }}>Fill demo</Ghost>
+                </div>
                 {err && <div className="text-red-600 text-sm">{err}</div>}
+                <div className="text-xs text-muted mt-2">Backend: <code className="mono">{backend||'(not set)'}</code></div>
               </div>
             </div>
-            <div className="text-white/70 text-xs mt-3">Backend: <code className="mono">{backend||'(not set)'}</code></div>
+            <div className="text-white/70 text-xs mt-3">Tip: press "/" to focus search when viewing a sheet.</div>
           </div>
         </div>
       );
