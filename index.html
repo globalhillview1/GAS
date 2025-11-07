@@ -131,7 +131,7 @@
     const BackBar=({title,onBack})=> (<div className="flex items-center gap-2"><button className="btn-secondary" onClick={onBack}>← Back</button><div className="text-sm text-gray-500">{title}</div></div>);
 
     // =====================
-    // Pages
+    // Pages (Dashboard, Notices, Issues, Directory, Payments, OB, COA, Docs, Voters, Admin)
     // =====================
     function Dashboard({residents,tickets,transactions,notices}){
       const openTickets=tickets.filter(t=>(t.Status||'').toLowerCase()!=='closed').length;
@@ -654,4 +654,101 @@
         }catch(err){ setLastError(err); useDemo(); }
         finally{ setLoading(false); }
       }
-      function useDemo(){ setDirectory(DEMO.Directory); setNotices(DEMO.Notices); setTickets(DEMO.Issues); setTransactions(DEMO.Transactions); setDocuments(DEMO.Documents); setVoters(DEMO.Voters); setOpeningBalances(DEMO.Opening
+      function useDemo(){ setDirectory(DEMO.Directory); setNotices(DEMO.Notices); setTickets(DEMO.Issues); setTransactions(DEMO.Transactions); setDocuments(DEMO.Documents); setVoters(DEMO.Voters); setOpeningBalances(DEMO.OpeningBalances); setChart(DEMO.ChartOfAccounts); setUsers(DEMO.Users); setMode('DEMO'); }
+
+      useEffect(()=>{ loadAll(); },[]);
+
+      const isAdmin = session.role==='admin';
+      const writable = mode==='LIVE';
+
+      // --- Write actions ---
+      async function createNotice(n){ if(!writable) { alert('Demo Mode: write disabled'); return; } const res=await api('createNotice','POST',n); if(res) setNotices(p=>[res,...p]); return res; }
+      async function createIssue(t){ if(!writable) { alert('Demo Mode: write disabled'); return; } const res=await api('createIssue','POST',t); if(res) setTickets(p=>[res,...p]); return res; }
+      async function addDirectory(row){ if(!writable) { alert('Demo Mode: write disabled'); return; } const res=await api('addDirectory','POST',row); if(res) setDirectory(p=>[res,...p]); return res; }
+      async function addTransaction(row){ if(!writable) { alert('Demo Mode: write disabled'); return; } const res=await api('addTransaction','POST',row); if(res) setTransactions(p=>[res,...p]); return res; }
+
+      function login(u,p){
+        const rec = users.find(x=>String(x.Username).toLowerCase()===String(u).toLowerCase() && String(x.Password)===String(p) && String(x.Active).toLowerCase()==='yes');
+        if(rec) setSession({username:rec.Username,role:rec.Role?.toLowerCase()==='admin'?'admin':'user'});
+        else alert('Invalid credentials');
+      }
+      function logout(){ setSession({username:'guest',role:'user'}); }
+
+      const residents = directory.map((r)=> ({ id: r.Serial ?? r.id ?? `${r.Name}-${r.Flat}`, name: r.Name ?? r['First Owner Name'] ?? '', flat: r.Flat ?? `${r['Tower No.']||''}-${r['Flat No.']||''}`, phone: r.Phone || r.Mobile || '', email: r.Email || '', Photo:r.Photo || '' }));
+      const filteredResidents = useMemo(()=>{ const q=search.trim().toLowerCase(); if(!q) return residents; return residents.filter(r=> [r.name,r.flat,r.phone,r.email].some(v=> String(v||'').toLowerCase().includes(q))); },[search,directory]);
+
+      // --- Layout ---
+      return (
+        <div className="max-w-[1400px] mx-auto px-5 py-6 grid gap-4">
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <div className="text-xl font-semibold">🏡 {SOCIETY_NAME}</div>
+            <div className="ml-auto flex items-center gap-2">
+              <input className="border rounded-xl px-3 py-2 w-[320px]" placeholder="Search directory..." value={search} onChange={e=>setSearch(e.target.value)} />
+              <button className="btn-secondary">Search</button>
+            </div>
+          </div>
+
+          {/* Shell */}
+          <div className="grid grid-cols-[240px,1fr] gap-4">
+            {/* Sidebar */}
+            <div className="grid gap-2">
+              <NavItem label="Dashboard" active={view==='dashboard'} onClick={()=>setView('dashboard')} />
+              <NavItem label="Notices" active={view==='notices'} onClick={()=>setView('notices')} />
+              <NavItem label="Tickets" active={view==='tickets'} onClick={()=>setView('tickets')} />
+              <NavItem label="Directory" active={view==='directory'} onClick={()=>setView('directory')} />
+              <NavItem label="Payments" active={view==='payments'} onClick={()=>setView('payments')} />
+              <NavItem label="OpeningBalances" active={view==='opening'} onClick={()=>setView('opening')} />
+              <NavItem label="ChartOfAccounts" active={view==='chart'} onClick={()=>setView('chart')} />
+              <NavItem label="Documents" active={view==='documents'} onClick={()=>setView('documents')} />
+              <NavItem label="Voters" active={view==='voters'} onClick={()=>setView('voters')} />
+              <NavItem label="Admin" active={view==='admin'} onClick={()=>setView('admin')} />
+
+              {/* Diagnostics */}
+              <Diagnostics baseUrl={BASE_URL} lastError={lastError} mode={mode} rerun={loadAll} tests={tests} />
+            </div>
+
+            {/* Content */}
+            <div className="grid gap-4">
+              {loading && <Banner>Loading from Google Sheets…</Banner>}
+              {view==='dashboard' && (
+                <Dashboard residents={filteredResidents} tickets={tickets} transactions={transactions} notices={notices} />
+              )}
+              {view==='notices' && (
+                <Notices notices={notices} onCreate={createNotice} writable={writable} onBack={()=>setView('dashboard')} isAdmin={isAdmin} />
+              )}
+              {view==='tickets' && (
+                <Issues tickets={tickets} onCreate={createIssue} writable={writable} onBack={()=>setView('dashboard')} isAdmin={isAdmin} />
+              )}
+              {view==='directory' && (
+                <Directory rows={directory} onBack={()=>setView('dashboard')} isAdmin={isAdmin} onCreate={addDirectory} />
+              )}
+              {view==='payments' && (
+                <Payments transactions={transactions} onBack={()=>setView('dashboard')} isAdmin={isAdmin} onCreate={addTransaction} />
+              )}
+              {view==='opening' && (
+                <OpeningBalances rows={openingBalances} onBack={()=>setView('dashboard')} />
+              )}
+              {view==='chart' && (
+                <ChartOfAccounts rows={chart} onBack={()=>setView('dashboard')} />
+              )}
+              {view==='documents' && (
+                <Documents documents={documents} onBack={()=>setView('dashboard')} />
+              )}
+              {view==='voters' && (
+                <Voters voters={voters} onBack={()=>setView('dashboard')} />
+              )}
+              {view==='admin' && (
+                <Admin users={users} session={session} onLogin={login} onLogout={logout} onBack={()=>setView('dashboard')} />
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
