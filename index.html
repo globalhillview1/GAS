@@ -37,8 +37,12 @@
     .btn-ghost{ background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem; }
     .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace }
-    .spin{ border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite }
+
+    /* High-contrast spinner */
+    .spin{ width:18px;height:18px;border-radius:50%;
+      border:3px solid rgba(16,185,129,.25); border-top-color:#10b981; animation:s .8s linear infinite }
     @keyframes s{to{transform:rotate(360deg)}}
+
     .login-bg{
       min-height:100vh;
       background:
@@ -49,27 +53,19 @@
       animation:floaty 16s ease-in-out infinite alternate;
     }
     @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
-    /* Error overlay for quick diagnosis */
-    #errbox{position:fixed;inset:auto 12px 12px 12px;z-index:99999;background:#111827;color:#fff;border:1px solid #ef4444;padding:10px 12px;border-radius:12px;font:12px/1.4 ui-monospace,monospace;display:none;white-space:pre-wrap}
+
+    /* Full-screen busy overlay */
+    .overlay{position:fixed;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:60}
+    .dot{width:10px;height:10px;border-radius:9999px;background:#10b981;animation:b 1.2s infinite ease-in-out}
+    .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+    @keyframes b{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
   </style>
 </head>
 <body class="bg-mist text-ink">
   <div id="root"></div>
-  <pre id="errbox"></pre>
 
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
-
-    // Error overlay (so blank screens are visible next time)
-    (function(){
-      const box = document.getElementById('errbox');
-      const show = (e) => {
-        box.style.display='block';
-        box.textContent = '⚠️ Runtime error:\\n\\n' + (e?.message || e) + (e?.stack ? ('\\n\\n'+e.stack) : '');
-      };
-      window.addEventListener('error', ev => show(ev.error || ev.message));
-      window.addEventListener('unhandledrejection', ev => show(ev.reason));
-    })();
 
     const qs = new URLSearchParams(location.search);
     const GAS = (qs.get('gas') || window.ENV_GAS_URL || '').trim();
@@ -114,6 +110,17 @@
     const Btn   = (p)=><button className={"btn "+(p.className||'')} {...p}>{p.children}</button>;
     const Ghost = (p)=><button className={"btn-ghost "+(p.className||'')} {...p}>{p.children}</button>;
 
+    const BusyOverlay = ({show, label="Working..."}) => show ? (
+      <div className="overlay">
+        <div className="bg-white/95 rounded-2xl px-6 py-5 shadow-lg flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="dot"></span><span className="dot"></span><span className="dot"></span>
+          </div>
+          <div className="text-sm text-gray-700">{label}</div>
+        </div>
+      </div>
+    ) : null;
+
     const BackBar = ({onBack,title, right})=>(
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -148,8 +155,8 @@
 
       const filtered = useMemo(()=>{
         if(!q) return rows;
-        const needle = q.toLowerCase();
-        return rows.filter(r => columns.some(c => String(r[c]||'').toLowerCase().includes(needle)));
+        const n = q.toLowerCase();
+        return rows.filter(r => columns.some(c => String(r[c]||'').toLowerCase().includes(n)));
       }, [rows, q, columns]);
 
       const [draft, setDraft] = useState(()=>rows.map(r=>({...r})));
@@ -280,29 +287,29 @@
       );
     }
 
-    function LoginScreen({ onSuccess }) {
-      const [u, setU] = useState('');
-      const [p, setP] = useState('');
-      const [err, setErr] = useState('');
-      const [busy, setBusy] = useState(false);
+    function LoginScreen({ onSuccess, busy }){
+      const [u,setU]=useState('');
+      const [p,setP]=useState('');
+      const [err,setErr]=useState('');
+      const [signing,setSigning]=useState(false);
 
-      async function go() {
-        setBusy(true); setErr('');
-        try {
-          const r = await api.login(u, p);
-          if (r?.ok && r?.token) {
+      async function go(){
+        setSigning(true); setErr('');
+        try{
+          const r=await api.login(u,p);
+          if(r?.ok && r?.token){
             localStorage.setItem('session', r.token);
-            onSuccess({ token: r.token, role: (r.role || 'user').toLowerCase(), username: r.username || u });
-          } else setErr(r?.error || 'Invalid credentials');
-        } catch (e) { setErr(String(e)); }
-        finally { setBusy(false); }
+            onSuccess({ token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u });
+          } else setErr(r?.error||'Invalid credentials');
+        }catch(e){ setErr(String(e)); }
+        finally{ setSigning(false); }
       }
 
       return (
         <div className="login-bg grid place-items-center p-6">
           <div className="w-full max-w-md">
             <div className="card p-8 shadow-2xl rounded-2xl"
-              style={{background:'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,240,255,0.95) 100%)'}}>
+                 style={{background:'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,240,255,0.95) 100%)'}}>
               <div className="flex items-center gap-3 mb-6 justify-center">
                 <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-lg shadow-md" alt="logo"/>
                 <div className="text-xl font-bold text-gray-800 text-center">Global Hillview — Society Portal</div>
@@ -318,28 +325,38 @@
                   <input type="password" className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
                          value={p} onChange={e=>setP(e.target.value)} placeholder="Enter password" />
                 </div>
-                <button onClick={go} disabled={busy}
-                        className="btn w-full flex items-center justify-center gap-2 rounded-xl shadow-md hover:shadow-lg hover:brightness-105 transition">
-                  {busy && <span className="spin"></span>}
-                  <span>{busy ? 'Signing in…' : 'Sign in'}</span>
+                <button onClick={go} disabled={signing}
+                        className="btn w-full flex items-center justify-center gap-3 rounded-xl shadow-md hover:shadow-lg hover:brightness-105 transition">
+                  {signing && <span className="spin"></span>}
+                  <span>{signing ? 'Signing in…' : 'Sign in'}</span>
                 </button>
                 {err && <div className="text-red-600 text-center text-sm mt-2">{err}</div>}
               </div>
             </div>
-            {/* backend info intentionally hidden */}
-            <div className="hidden text-white/70 text-xs mt-3">
-              Backend: <code className="mono">{GAS||'(not set)'}</code>
-            </div>
           </div>
+          <BusyOverlay show={busy} label="Preparing app…" />
         </div>
       );
     }
+
+    const Splash = ({label="Loading…"}) => (
+      <div className="login-bg grid place-items-center min-h-screen">
+        <div className="bg-white/95 rounded-2xl px-6 py-6 shadow-xl flex flex-col items-center gap-3">
+          <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-lg" alt="logo"/>
+          <div className="flex items-center gap-2">
+            <span className="spin"></span><span className="spin"></span>
+          </div>
+          <div className="text-sm text-gray-700">{label}</div>
+        </div>
+      </div>
+    );
 
     function App(){
       const [view,setView]=useState('dashboard');
       const [session,setSession]=useState({token:null, role:null, username:null});
       const [data,setData]=useState({ Directory:[], Notices:[], Issues:[], Transactions:[], Documents:[], Voters:[], OpeningBalances:[], ChartOfAccounts:[], Users:[] });
-      const [busy,setBusy]=useState(false);
+      const [busy,setBusy]=useState(false);      // fetches, logout, etc.
+      const [booting,setBooting]=useState(true); // first-run boot so login doesn't flash
       const isAdmin = (session.role==='admin');
 
       async function refresh(sheet){
@@ -359,6 +376,7 @@
         const tok = qs.get('session') || localStorage.getItem('session');
         (async ()=>{
           if(tok){
+            // Show splash while verifying token (prevents login flash)
             try{
               const s = await api.sessionInfo(tok);
               if(s?.ok){ setSession({token:tok, role:(s.role||'user').toLowerCase(), username:s.username||'user'}); }
@@ -366,11 +384,30 @@
             }catch(_){}
           }
           await refresh();
+          setBooting(false);
         })();
       },[]);
 
+      // Splash while booting (prevents the brief login flash)
+      if(booting) return <Splash label="Initializing…" />;
+
+      // Login gate
       if(!session.token || !session.role){
-        return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} />;
+        return <LoginScreen
+          busy={busy}
+          onSuccess={(s)=>{ setSession(s); refresh(); }}
+        />;
+      }
+
+      async function doLogout(){
+        setBusy(true);
+        try{
+          // (optional) could call backend logout here
+          localStorage.removeItem('session');
+          setSession({token:null, role:null, username:null});
+        } finally {
+          setBusy(false);
+        }
       }
 
       return (
@@ -383,7 +420,7 @@
               </div>
               <div className="flex items-center gap-2">
                 <span className="badge">Logged in: {session.role}</span>
-                <Ghost onClick={()=>{ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }}>Logout</Ghost>
+                <Ghost onClick={doLogout}>Logout</Ghost>
               </div>
             </div>
           </header>
@@ -396,7 +433,7 @@
                 </button>
               ))}
               <div className="card p-3 text-xs text-gray-500">
-                {busy ? <div className="mt-1 flex items-center gap-2"><span className="spin"></span> Loading…</div> : 'Ready'}
+                {busy ? <div className="mt-1 flex items-center gap-2"><span className="spin"></span> Working…</div> : 'Ready'}
               </div>
             </aside>
 
@@ -412,11 +449,13 @@
               )}
             </main>
           </div>
+
+          <BusyOverlay show={busy} label="Please wait…" />
         </div>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
