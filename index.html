@@ -4,596 +4,756 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Hillview — Society Portal</title>
-  <meta name="color-scheme" content="light" />
-
-  <!-- Favicons (files must be in the repo root as uploaded) -->
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png" />
-  <link rel="manifest" href="site.webmanifest" />
-
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc", card:"#fff", border:"#e5e7eb", accent:"#2563eb", success:"#16a34a", warn:"#f59e0b" } } }
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#8b5cf6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+          }
+        }
+      }
     }
   </script>
-
-  <!-- React + Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- GAS endpoint (override with ?gas=<url>) -->
   <script>
     window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
   </script>
-
   <style>
-    :root {
-      --card-bg: #fff;
-      --card-border: #e5e7eb;
-      --accent: #2563eb;
-      --muted: #6b7280;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+    
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    html,body,#root{height:100%}
-    .card {
-      background:var(--card-bg);
-      border:1px solid var(--card-border);
-      border-radius:14px;
-      box-shadow: 0 6px 18px rgba(12, 18, 28, 0.06);
-      box-sizing: border-box;
-      overflow: hidden; /* prevent children overflowing (fixes the login input bleed) */
+    
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .btn  {
-      background:#0f172a;
-      color:#fff;
-      border-radius:12px;
-      padding:.55rem .95rem;
-      transition:transform .06s ease, box-shadow .06s ease, opacity .12s;
+    
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
-    .btn:active{ transform: translateY(1px); }
-    .btn[disabled]{ opacity:.6; pointer-events:none; }
-    .btn-ghost {
-      background:#f8fafc;
-      color:#0f172a;
-      border-radius:12px;
-      padding:.45rem .85rem;
-      display:block;
-      text-align:left;
-      width:100%;
-      border: 1px solid transparent; /* keep border space constant to avoid layout shift */
-      min-height:44px;               /* consistent height so cards don't resize */
-      box-sizing: border-box;
+    
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
-    .btn-ghost.selected {
-      border-color: var(--card-border); /* visual selected state without changing layout */
-      background: #f3f4f6;
-      box-shadow: 0 1px 0 rgba(0,0,0,0.02) inset;
+    
+    .stat-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+      backdrop-filter: blur(10px);
     }
-    .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace }
-    .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite; display:inline-block }
-    @keyframes s{to{transform:rotate(360deg)}}
-
-    /* nicer login background and card */
-    .login-bg{
-      min-height:100vh;
-      background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.28), transparent 40%),
-        radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.28), transparent 45%),
-        radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.28), transparent 40%),
-        linear-gradient(180deg,#071124 0%, #081822 60%);
-      animation:floaty 16s ease-in-out infinite alternate;
+    
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
     }
-    @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
-
-    /* focus styles for accessibility */
-    :focus { outline: none; }
-    :focus-visible { box-shadow: 0 0 0 4px rgba(37,99,235,0.12); border-radius:8px; }
-
-    /* table improvements */
-    table.min-w-full { border-collapse: separate; border-spacing: 0; }
-    table thead th {
-      position: sticky;
-      top: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
-      backdrop-filter: blur(3px);
-      z-index: 1;
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
-    td, th { padding: 12px 10px; vertical-align: top; }
-    td { white-space: normal; word-break: break-word; }
-
-    /* responsive table wrap for small screens: switch to stacked cards */
-    @media (max-width: 720px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      thead { display:none; }
-      tr { margin-bottom: 0.75rem; border-radius: 10px; padding: 0.5rem; background: rgba(255,255,255,0.6); border:1px solid rgba(225,225,225,0.9); }
-      td { display:flex; justify-content:space-between; padding: .6rem; }
-      td::before { font-weight:600; color:var(--muted); margin-right: 0.5rem; }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
     }
-
-    /* toast */
-    .toast-wrap { position: fixed; right: 18px; bottom: 24px; z-index: 9999; display:flex; flex-direction:column; gap:8px; }
-    .toast {
-      min-width: 220px;
-      max-width: 360px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      color: white;
-      box-shadow: 0 6px 18px rgba(12, 18, 28, 0.12);
-      font-size: 0.95rem;
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .toast.info { background: #111827; }
-    .toast.success { background: #059669; }
-    .toast.error { background: #dc2626; }
-    .busy-overlay {
-      position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(7,9,10,0.18); z-index: 999;
+    
+    .nav-item {
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
     }
-
-    /* small helpers */
-    .text-muted { color: #6b7280; }
-
-    /* inputs: ensure they respect container width and avoid overflow */
-    input, textarea, select { box-sizing: border-box; max-width: 100%; }
-    .login-card { max-width: 440px; width: 100%; }
+    
+    .nav-item:hover {
+      background: rgba(59, 130, 246, 0.05);
+      border-left-color: #3b82f6;
+    }
+    
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      border-left-color: #3b82f6;
+      font-weight: 600;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .status-open { background: #fef3c7; color: #92400e; }
+    .status-progress { background: #dbeafe; color: #1e40af; }
+    .status-closed { background: #d1fae5; color: #065f46; }
+    
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    input, textarea, select {
+      transition: all 0.2s ease;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .search-box {
+      position: relative;
+    }
+    
+    .search-box input {
+      padding-left: 2.5rem;
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+    }
   </style>
 </head>
-<body class="bg-mist text-ink">
+<body class="bg-gray-50">
   <div id="root"></div>
 
-  <!-- App -->
-  <script type="text/babel" data-presets="env,react">
-    const { useEffect, useMemo, useState, useRef } = React;
-
-    // -------- config
+  <script type="text/babel">
+    const { useEffect, useState, useMemo } = React;
+    
     const qs = new URLSearchParams(location.search);
-    const GAS = (qs.get('gas') || window.ENV_GAS_URL || '').trim();
-    const INR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 });
+    const GAS = qs.get('gas') || window.ENV_GAS_URL || '';
+    const INR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 });
 
-    // -------- util
+    // API utilities
     async function fetchWithTimeout(url, opts={}, ms=12000){
-      const ctl=new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
-      try{ return await fetch(url,{...opts,signal:ctl.signal}); } finally{ clearTimeout(id); }
+      const ctl = new AbortController();
+      const id = setTimeout(() => ctl.abort(), ms);
+      try {
+        return await fetch(url, {...opts, signal: ctl.signal});
+      } finally {
+        clearTimeout(id);
+      }
     }
+
     async function getJSON(action, extra={}){
-      const u=new URL(GAS); if(!GAS) throw new Error('Backend not configured');
+      const u = new URL(GAS);
+      if(!GAS) throw new Error('Backend not configured');
       u.searchParams.set('action', action);
-      for(const [k,v] of Object.entries(extra)) u.searchParams.set(k,v);
-      const r=await fetchWithTimeout(u,{cache:'no-store'}); if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      for(const [k,v] of Object.entries(extra)) u.searchParams.set(k, v);
+      const r = await fetchWithTimeout(u, {cache:'no-store'});
+      if(!r.ok) throw new Error(await r.text().catch(() => r.statusText));
       return r.json();
     }
+
     async function postPlain(body){
       if(!GAS) throw new Error('Backend not configured');
-      const r=await fetchWithTimeout(GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
-      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      const r = await fetchWithTimeout(GAS, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+        body: JSON.stringify(body)
+      });
+      if(!r.ok) throw new Error(await r.text().catch(() => r.statusText));
       return r.json();
     }
 
     const api = {
-      // auth
-      async login(u,p){ try{ return await postPlain({op:'login', username:u, password:p}); } catch{ return getJSON('login',{u,p}); } },
-      async sessionInfo(token){ return postPlain({op:'sessionInfo', token}); },
-
-      // list per sheet (your existing actions)
-      list: {
-        Directory: ()=>getJSON('listDirectory'),
-        Notices: ()=>getJSON('listNotices'),
-        Issues: ()=>getJSON('listIssues'),
-        Transactions: ()=>getJSON('listTransactions'),
-        Documents: ()=>getJSON('listDocuments'),
-        Voters: ()=>getJSON('listVoters'),
-        OpeningBalances: ()=>getJSON('listOpeningBalances').catch(()=>({rows:[]})),
-        ChartOfAccounts: ()=>getJSON('listChartOfAccounts').catch(()=>({rows:[]})),
-        Users: ()=>getJSON('listUsers').catch(()=>({rows:[]})),
+      async login(u, p) {
+        try {
+          return await postPlain({op:'login', username:u, password:p});
+        } catch {
+          return getJSON('login', {u, p});
+        }
       },
-
-      // generic create + upsert
-      async createRow(sheet, row){ return postPlain({ op:'createRow', sheet, row }); },
-      async upsertRow(sheet, key, row){ return postPlain({ op:'upsertRow', sheet, key, row }); },
+      async sessionInfo(token) {
+        return postPlain({op:'sessionInfo', token});
+      },
+      list: {
+        Directory: () => getJSON('listDirectory'),
+        Notices: () => getJSON('listNotices'),
+        Issues: () => getJSON('listIssues'),
+        Transactions: () => getJSON('listTransactions'),
+        Documents: () => getJSON('listDocuments'),
+        Voters: () => getJSON('listVoters'),
+      },
+      async upsertRow(sheet, key, row) {
+        return postPlain({op:'upsertRow', sheet, key, row});
+      },
+      async createRow(sheet, row) {
+        return postPlain({op:'createRow', sheet, row});
+      }
     };
 
-    // -------- small atoms
-    const Btn = (p)=><button className={"btn "+(p.className||'')} {...p}>{p.children}</button>;
-    const Ghost = (p)=><button className={"btn-ghost "+(p.className||'')} {...p}>{p.children}</button>;
-    const BackBar = ({onBack,title})=>(
-      <div className="flex items-center justify-between">
-        <Ghost onClick={onBack} aria-label="Back">← Back</Ghost>
-        <div className="text-sm text-muted">{title}</div>
-      </div>
-    );
-
-    // Minimal toast system (non-blocking)
-    function showToast(message, type='info', timeout=3200){
-      const wrapId = '__toast_wrap';
-      let wrap = document.getElementById(wrapId);
-      if(!wrap){
-        wrap = document.createElement('div'); wrap.id = wrapId;
-        wrap.className = 'toast-wrap'; document.body.appendChild(wrap);
-      }
-      const t = document.createElement('div');
-      t.className = 'toast ' + (type||'info'); t.textContent = message;
-      wrap.appendChild(t);
-      setTimeout(()=>{ t.style.transition='opacity .25s'; t.style.opacity='0'; setTimeout(()=>t.remove(),250); }, timeout);
+    // Toast notification
+    function showToast(message, type='info') {
+      const toastContainer = document.getElementById('toast-container') || (() => {
+        const div = document.createElement('div');
+        div.id = 'toast-container';
+        div.className = 'fixed top-4 right-4 z-50 flex flex-col gap-2';
+        document.body.appendChild(div);
+        return div;
+      })();
+      
+      const toast = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+      toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg fade-in`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
     }
 
-    // QuickSearch (debounced)
-    function QuickSearch({value,onChange,placeholder="Quick search…", inputRef}){
-      const [local,setLocal]=useState(value||"");
-      useEffect(()=>setLocal(value||""),[value]);
-      useEffect(()=>{
-        const t=setTimeout(()=>onChange(local),250);
-        return ()=>clearTimeout(t);
-      },[local]);
+    // Login Screen Component
+    function LoginScreen({ onSuccess }) {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      async function handleLogin(e) {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        
+        try {
+          const r = await api.login(username, password);
+          if (r?.ok && r?.token) {
+            localStorage.setItem('session', r.token);
+            onSuccess({
+              token: r.token,
+              role: (r.role || 'user').toLowerCase(),
+              username: r.username || username
+            });
+            showToast('Welcome back!', 'success');
+          } else {
+            setError(r?.error || 'Invalid credentials');
+          }
+        } catch (e) {
+          setError(String(e));
+        } finally {
+          setLoading(false);
+        }
+      }
+
       return (
-        <div className="flex items-center gap-2">
-          <input
-            aria-label="Quick search"
-            ref={inputRef}
-            className="border rounded-xl px-3 py-2 w-64"
-            placeholder={placeholder}
-            value={local}
-            onChange={e=>setLocal(e.target.value)}
-          />
-          <button title="Clear" className="text-muted" onClick={()=>{ setLocal(''); onChange(''); }}>✕</button>
+        <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 fade-in">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900">Global Hillview</h1>
+                <p className="text-gray-600 mt-2">Society Management Portal</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Enter your username"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading && <div className="spinner" />}
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setUsername('demo'); setPassword('demo'); }}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
+                >
+                  Use Demo Account
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       );
     }
 
-    // -------- dynamic grid editor (admin only)
-    function EditableGrid({ sheet, rows, isAdmin, onRefresh, query }){
-      const columns = useMemo(()=>{
-        const set=new Set();
-        rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
-        return Array.from(set);
-      },[rows]);
-
-      const filteredRows = useMemo(()=>{
-        const q=(query||"").trim().toLowerCase();
-        if(!q) return rows;
-        return rows.filter(r=>Object.values(r||{}).some(v=>String(v??'').toLowerCase().includes(q)));
-      },[rows,query]);
-
-      const keyField = useMemo(()=>{
-        const candidates = {
-          Issues: ['Tracking ID','Id','ID'],
-          Notices: ['Serial Number','ID'],
-          Directory: ['Serial','ID'],
-          Transactions: ['ID'],
-          Documents: ['Serial Number','ID'],
-          Voters: ['ID','Serial Number'],
-          OpeningBalances:['Account','ID'],
-          ChartOfAccounts:['Code','ID'],
-          Users:['Username','User','ID'],
-        }[sheet] || ['ID','Serial Number','Tracking ID'];
-        const r0 = filteredRows[0] || rows[0] || {};
-        return candidates.find(c=>c in r0) || candidates[0];
-      },[sheet,filteredRows,rows]);
-
-      const [draft, setDraft] = useState(()=>filteredRows.map(r=>({...r})));
-      useEffect(()=>{ setDraft(filteredRows.map(r=>({...r}))); },[filteredRows]);
-
-      function setCell(ridx, col, val){
-        setDraft(d => { const cp=d.slice(); cp[ridx] = { ...cp[ridx], [col]: val }; return cp; });
-      }
-
-      async function saveRow(ridx){
-        if(!isAdmin) { showToast('Only admin can save', 'error'); return; }
-        const row = draft[ridx] || {};
-        const src = filteredRows[ridx] || {};
-        const keyVal = row[keyField] ?? src[keyField];
-        try{
-          await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
-          await onRefresh();
-          showToast('Row saved', 'success');
-        }catch(e){ showToast('Save failed: '+String(e), 'error'); }
-      }
-
-      async function saveAll(){
-        if(!isAdmin) { showToast('Only admin can save', 'error'); return; }
-        try{
-          for(let i=0;i<draft.length;i++){
-            const row = draft[i] || {};
-            const src = filteredRows[i] || {};
-            const keyVal = row[keyField] ?? src[keyField];
-            await api.upsertRow(sheet, keyField, { ...src, ...row, [keyField]: keyVal });
-          }
-          await onRefresh();
-          showToast('All rows saved', 'success');
-        }catch(e){ showToast('Save all failed: '+String(e), 'error'); }
-      }
-
-      const emptyRow = Object.fromEntries(columns.map(c=>[c,'']));
-      const [newRow, setNewRow] = useState(emptyRow);
-      useEffect(()=>{ const e=Object.fromEntries(columns.map(c=>[c,''])); setNewRow(e); },[columns.join('|')]);
-
-      async function addRow(){
-        if(!isAdmin) { showToast('Only admin can add', 'error'); return; }
-        try{ await api.createRow(sheet, newRow); await onRefresh(); setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); showToast('Added', 'success'); }
-        catch(e){ showToast('Add failed: '+String(e), 'error'); }
-      }
+    // Dashboard Component
+    function Dashboard({ data }) {
+      const stats = useMemo(() => {
+        const openIssues = data.Issues.filter(i => (i.Status || '').toLowerCase() !== 'closed').length;
+        const totalResidents = data.Directory.length;
+        const collected = data.Transactions
+          .filter(t => (t.Type || '').toLowerCase() === 'credit')
+          .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
+        const expenses = data.Transactions
+          .filter(t => (t.Type || '').toLowerCase() === 'debit')
+          .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
+        
+        return { openIssues, totalResidents, collected, expenses };
+      }, [data]);
 
       return (
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="font-medium mb-1">{sheet} <span className="text-sm text-muted">({filteredRows.length} shown / {rows.length})</span></div>
-              {!isAdmin && <div className="text-sm text-red-600">Read-only: admin required to edit.</div>}
+        <div className="space-y-6 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="stat-card rounded-2xl p-6 card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Total Residents</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalResidents}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {isAdmin && <Ghost onClick={saveAll} aria-label="Save all">Save all</Ghost>}
-              <div className="text-xs text-muted"></div>
+
+            <div className="stat-card rounded-2xl p-6 card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Open Issues</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.openIssues}</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card rounded-2xl p-6 card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Collected</p>
+                  <p className="text-3xl font-bold text-green-600 mt-2">{INR.format(stats.collected)}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card rounded-2xl p-6 card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Expenses</p>
+                  <p className="text-3xl font-bold text-red-600 mt-2">{INR.format(stats.expenses)}</p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
 
-          {isAdmin && (
-            <div className="mb-4">
-              <div className="font-medium mb-2">Add to {sheet}</div>
-              <div className="grid md:grid-cols-3 gap-2">
-                {columns.map(c=>(
-                  <div key={'add-'+c}>
-                    <div className="text-xs text-muted mb-1">{c}</div>
-                    <input className="border rounded-lg p-2 w-full"
-                      value={newRow[c]??''} onChange={e=>setNewRow(r=>({...r,[c]:e.target.value}))}/>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Notices</h3>
+              <div className="space-y-3">
+                {data.Notices.slice(0, 5).map((notice, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{notice.Subject}</p>
+                      <p className="text-xs text-gray-500 mt-1">{notice.Date}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-3"><Btn onClick={addRow}>Add</Btn></div>
-              <hr className="my-4"/>
             </div>
-          )}
 
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm" role="table" aria-label={sheet + " table"}>
-              <thead>
-                <tr className="text-left text-muted">
-                  {columns.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
-                  {isAdmin && <th className="py-2 pr-4">Save</th>}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Issues</h3>
+              <div className="space-y-3">
+                {data.Issues.slice(0, 5).map((issue, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{issue.Title || issue.Description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`status-badge status-${(issue.Status || 'open').toLowerCase().replace(' ', '-')}`}>
+                          {issue.Status || 'Open'}
+                        </span>
+                        <span className="text-xs text-gray-500">{issue['Tracking ID']}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Data Table Component
+    function DataTable({ title, data, searchable = true }) {
+      const [search, setSearch] = useState('');
+      
+      const columns = useMemo(() => {
+        if (!data.length) return [];
+        return Object.keys(data[0]);
+      }, [data]);
+
+      const filtered = useMemo(() => {
+        if (!search.trim()) return data;
+        const q = search.toLowerCase();
+        return data.filter(row => 
+          Object.values(row).some(v => 
+            String(v).toLowerCase().includes(q)
+          )
+        );
+      }, [data, search]);
+
+      return (
+        <div className="bg-white rounded-2xl shadow-sm fade-in">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              {searchable && (
+                <div className="search-box">
+                  <svg className="search-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {columns.map(col => (
+                    <th key={col} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody>
-                {filteredRows.length===0 && (
-                  <tr><td className="py-3 text-muted" colSpan={columns.length+(isAdmin?1:0)}>No rows match “{query}”.</td></tr>
-                )}
-                {draft.map((r,idx)=>(
-                  <tr key={idx} className="border-t align-top">
-                    {columns.map(h=>{
-                      const v = r[h] ?? '';
-                      const isLong = String(v).length > 60 || /[\n\r]/.test(String(v));
-                      return (
-                        <td key={h} className="py-2 pr-4">
-                          {isAdmin
-                            ? (isLong
-                                ? <textarea rows="2" className="border rounded-lg p-2 w-full" value={v} onChange={e=>setCell(idx,h, e.target.value)} />
-                                : <input className="border rounded-lg p-2 w-full" value={v} onChange={e=>setCell(idx,h, e.target.value)} />)
-                            : <div className="text-sm">{String(v)}</div>}
-                        </td>
-                      );
-                    })}
-                    {isAdmin && <td className="py-2 pr-4"><Ghost onClick={()=>saveRow(idx)}>Save</Ghost></td>}
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filtered.map((row, i) => (
+                  <tr key={i} className="hover:bg-gray-50 transition-colors">
+                    {columns.map(col => (
+                      <td key={col} className="px-6 py-4 text-sm text-gray-900">
+                        {col === 'Status' ? (
+                          <span className={`status-badge status-${(row[col] || 'open').toLowerCase().replace(' ', '-')}`}>
+                            {row[col] || 'Open'}
+                          </span>
+                        ) : (
+                          String(row[col] || '')
+                        )}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      );
-    }
-
-    // -------- pages
-    const PageShell = ({title, onBack, children})=>(
-      <section className="grid gap-3">
-        <BackBar title={title} onBack={onBack} />
-        {children}
-      </section>
-    );
-
-    function Dashboard({issues, directory, transactions, notices}){
-      const open = issues.filter(x=>(x.Status||'').toLowerCase()!=='closed').length;
-      const paid = transactions.filter(x=>(x.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
-      const deb  = transactions.filter(x=>(x.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
-      return (
-        <div className="grid gap-3">
-          <div className="grid md:grid-cols-4 gap-3">
-            <div className="card p-4"><div className="text-xs text-muted">Residents</div><div className="text-2xl font-semibold">{directory.length}</div></div>
-            <div className="card p-4"><div className="text-xs text-muted">Open issues</div><div className="text-2xl font-semibold">{open}</div></div>
-            <div className="card p-4"><div className="text-xs text-muted">Collected</div><div className="text-2xl font-semibold">{INR.format(paid)}</div></div>
-            <div className="card p-4"><div className="text-xs text-muted">Debits</div><div className="text-2xl font-semibold">{INR.format(deb)}</div></div>
-          </div>
-          <div className="card p-4">
-            <div className="font-medium mb-2">Latest notices</div>
-            <div className="grid gap-2">
-              {notices.slice(0,5).map((n,i)=>(
-                <div key={i} className="flex items-center justify-between border rounded-xl p-3">
-                  <div>
-                    <div className="font-medium">{n['Subject']}</div>
-                    <div className="text-xs text-muted">{n['Date']}</div>
-                  </div>
-                  <span className="badge">{n['Serial Number']||i+1}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // -------- app
-    function App(){
-      const [view,setView]=useState('dashboard');               // dashboard | <sheetName>
-      const [session,setSession]=useState({token:null, role:null, username:null});
-      const [data,setData]=useState({ Directory:[], Notices:[], Issues:[], Transactions:[], Documents:[], Voters:[], OpeningBalances:[], ChartOfAccounts:[], Users:[] });
-      const [busy,setBusy]=useState(false);
-      const [query,setQuery]=useState(""); // QUICK SEARCH (applies to active page)
-      const isAdmin = (session.role==='admin');
-      const searchRef = useRef(null);
-
-      async function refresh(sheet){
-        setBusy(true);
-        try{
-          if(sheet){
-            const r = await api.list[sheet]();
-            setData(d=>({...d, [sheet]: (r?.rows||[])}));
-          }else{
-            const entries = await Promise.all(Object.keys(api.list).map(async k=>[k, (await api.list[k]())?.rows||[] ]));
-            setData(Object.fromEntries(entries));
-          }
-        } finally { setBusy(false); }
-      }
-
-      // session boot
-      useEffect(()=>{
-        const tok = qs.get('session') || localStorage.getItem('session');
-        (async ()=>{
-          if(tok){
-            try{
-              const s = await api.sessionInfo(tok);
-              if(s?.ok){ setSession({token:tok, role:(s.role||'user').toLowerCase(), username:s.username||'user'}); }
-              else localStorage.removeItem('session');
-            }catch(_){}
-          }
-          await refresh();
-        })();
-      },[]);
-
-      // keyboard shortcut "/" to focus quick search when not on dashboard
-      useEffect(()=>{
-        function onKey(e){
-          if(e.key === '/' && view !== 'dashboard' && document.activeElement.tagName.toLowerCase() !== 'input'){
-            e.preventDefault();
-            searchRef.current?.focus();
-          }
-        }
-        window.addEventListener('keydown', onKey);
-        return ()=>window.removeEventListener('keydown', onKey);
-      },[view]);
-
-      // Login gate
-      if(!session.token || !session.role){
-        return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} backend={GAS} />;
-      }
-
-      const currentRows = data[view] || [];
-
-      return (
-        <div className="max-w-7xl mx-auto p-4 min-h-screen">
-          <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur mb-4">
-            <div className="h-14 flex items-center justify-between px-2">
-              <div className="flex items-center gap-3">
-                <img src="android-chrome-192x192.png" className="w-10 h-10 rounded-md" alt="brand"/>
-                <div>
-                  <div className="font-semibold">Global Hillview</div>
-                  <div className="text-xs text-muted">Sec-11, Sohna, Gurgaon</div>
-                </div>
+            
+            {filtered.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No data found
               </div>
-              <div className="flex items-center gap-3">
-                {/* QUICK SEARCH INPUT */}
-                {view!=='dashboard' && (
-                  <QuickSearch value={query} onChange={setQuery} inputRef={searchRef} />
-                )}
-                <div className={`px-2 py-1 rounded-md text-white text-xs ${session.role==='admin' ? 'bg-accent' : 'bg-gray-500'}`}> {session.role} </div>
-                <div className="text-sm text-muted">Hi, {session.username}</div>
-                <Ghost onClick={()=>{
-                  if(confirm('Logout now?')){ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }
-                }}>Logout</Ghost>
+            )}
+          </div>
+          
+          <div className="px-6 py-4 border-t border-gray-200 text-sm text-gray-600">
+            Showing {filtered.length} of {data.length} entries
+          </div>
+        </div>
+      );
+    }
+
+    // Main App Component
+    function App() {
+      const [session, setSession] = useState({ token: null, role: null, username: null });
+      const [view, setView] = useState('dashboard');
+      const [data, setData] = useState({
+        Directory: [],
+        Notices: [],
+        Issues: [],
+        Transactions: [],
+        Documents: [],
+        Voters: []
+      });
+      const [loading, setLoading] = useState(true);
+      const [sidebarOpen, setSidebarOpen] = useState(true);
+
+      useEffect(() => {
+        const token = qs.get('session') || localStorage.getItem('session');
+        if (token) {
+          (async () => {
+            try {
+              const s = await api.sessionInfo(token);
+              if (s?.ok) {
+                setSession({
+                  token,
+                  role: (s.role || 'user').toLowerCase(),
+                  username: s.username || 'user'
+                });
+              } else {
+                localStorage.removeItem('session');
+              }
+            } catch (e) {
+              console.error(e);
+            }
+            await refreshData();
+          })();
+        } else {
+          setLoading(false);
+        }
+      }, []);
+
+      async function refreshData() {
+        setLoading(true);
+        try {
+          const results = await Promise.all([
+            api.list.Directory(),
+            api.list.Notices(),
+            api.list.Issues(),
+            api.list.Transactions(),
+            api.list.Documents(),
+            api.list.Voters()
+          ]);
+          
+          setData({
+            Directory: results[0]?.rows || [],
+            Notices: results[1]?.rows || [],
+            Issues: results[2]?.rows || [],
+            Transactions: results[3]?.rows || [],
+            Documents: results[4]?.rows || [],
+            Voters: results[5]?.rows || []
+          });
+        } catch (e) {
+          showToast('Failed to load data', 'error');
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      if (!session.token) {
+        return <LoginScreen onSuccess={s => { setSession(s); refreshData(); }} />;
+      }
+
+      const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+        { id: 'Directory', label: 'Directory', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+        { id: 'Notices', label: 'Notices', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
+        { id: 'Issues', label: 'Issues', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+        { id: 'Transactions', label: 'Transactions', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        { id: 'Documents', label: 'Documents', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+        { id: 'Voters', label: 'Voters', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+      ];
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          {/* Header */}
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+            <div className="px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h1 className="text-lg font-semibold text-gray-900">Global Hillview</h1>
+                      <p className="text-xs text-gray-500">Sec-11, Sohna, Gurgaon</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={refreshData}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Refresh data"
+                  >
+                    <svg className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+
+                  <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm font-medium text-gray-900">{session.username}</p>
+                      <p className="text-xs text-gray-500 capitalize">{session.role}</p>
+                    </div>
+                    
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${session.role === 'admin' ? 'bg-blue-500' : 'bg-gray-500'}`}>
+                      {session.username[0].toUpperCase()}
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to logout?')) {
+                          localStorage.removeItem('session');
+                          setSession({ token: null, role: null, username: null });
+                        }
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Logout"
+                    >
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
-            <aside className="grid gap-2">
-              {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
-                <button key={tab}
-                  className={`btn-ghost text-left ${view===tab?'selected':''}`}
-                  onClick={()=>{ setView(tab); setQuery(''); }}>
-                  {tab==='dashboard'?'Dashboard':tab}
-                </button>
-              ))}
-              {qs.get('debug') === '1' && (
-                <div className="card p-3 text-xs text-muted">
-                  Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
-                  {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
-                </div>
-              )}
+          <div className="flex">
+            {/* Sidebar */}
+            <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-16 left-0 z-20 w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 transition-transform duration-300`}>
+              <nav className="p-4 space-y-1">
+                {navItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setView(item.id); setSidebarOpen(false); }}
+                    className={`nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${view === item.id ? 'active' : 'text-gray-700 hover:text-gray-900'}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
+                    </svg>
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
             </aside>
 
-            <main className="grid gap-4">
-              {view==='dashboard' && <Dashboard
-                issues={data.Issues} directory={data.Directory} transactions={data.Transactions} notices={data.Notices} />}
+            {/* Overlay for mobile */}
+            {sidebarOpen && (
+              <div
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-10 top-16"
+              />
+            )}
 
-              {view!=='dashboard' && (
-                <PageShell title={view} onBack={()=>{ setView('dashboard'); setQuery(''); }}>
-                  <EditableGrid
-                    sheet={view}
-                    rows={currentRows}
-                    isAdmin={isAdmin}
-                    onRefresh={()=>refresh(view)}
-                    query={query}
-                  />
-                </PageShell>
+            {/* Main Content */}
+            <main className="flex-1 p-4 sm:p-6 lg:p-8">
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="spinner" />
+                </div>
+              ) : view === 'dashboard' ? (
+                <Dashboard data={data} />
+              ) : (
+                <DataTable title={view} data={data[view]} />
               )}
             </main>
           </div>
-
-          {busy && (
-            <div className="busy-overlay" aria-hidden>
-              <div className="card p-5 flex items-center gap-3">
-                <span className="spin" aria-hidden></span>
-                <div>Loading…</div>
-              </div>
-            </div>
-          )}
         </div>
       );
     }
 
-    function LoginScreen({ onSuccess, backend }){
-      const [u,setU]=useState(''); const [p,setP]=useState(''); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
-      async function go(){
-        setBusy(true); setErr('');
-        try{
-          const r=await api.login(u,p);
-          if(r?.ok && r?.token){ localStorage.setItem('session', r.token); onSuccess({token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u}); showToast('Welcome back', 'success'); }
-          else setErr(r?.error||'Invalid credentials');
-        }catch(e){ setErr(String(e)); } finally{ setBusy(false); }
-      }
-      return (
-        <div className="login-bg grid place-items-center p-6">
-          <div className="w-full login-card">
-            <div className="card p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-md" alt="logo"/>
-                <div>
-                  <div className="font-semibold">Global Hillview — Society Portal</div>
-                  <div className="text-xs text-muted">Sign in to manage society data</div>
-                </div>
-              </div>
-              <div className="grid gap-3">
-                <div>
-                  <label className="text-sm text-muted mb-1 block">Username</label>
-                  <input className="border rounded-xl p-2 w-full" value={u} onChange={e=>setU(e.target.value)} autoFocus/>
-                </div>
-                <div>
-                  <label className="text-sm text-muted mb-1 block">Password</label>
-                  <input type="password" className="border rounded-xl p-2 w-full" value={p} onChange={e=>setP(e.target.value)}/>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Btn onClick={go} disabled={busy} className="flex items-center gap-2 justify-center">{busy&&<span className="spin"></span>}<span>{busy?'Signing in…':'Sign in'}</span></Btn>
-                  <Ghost onClick={()=>{ setU('demo'); setP('demo'); }}>Fill demo</Ghost>
-                </div>
-                {err && <div className="text-red-600 text-sm">{err}</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
+        
