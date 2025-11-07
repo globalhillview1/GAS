@@ -46,6 +46,8 @@
       border:1px solid var(--card-border);
       border-radius:14px;
       box-shadow: 0 6px 18px rgba(12, 18, 28, 0.06);
+      box-sizing: border-box;
+      overflow: hidden; /* prevent children overflowing (fixes the login input bleed) */
     }
     .btn  {
       background:#0f172a;
@@ -56,7 +58,23 @@
     }
     .btn:active{ transform: translateY(1px); }
     .btn[disabled]{ opacity:.6; pointer-events:none; }
-    .btn-ghost { background:#f8fafc; color:#0f172a; border-radius:12px; padding:.45rem .85rem; }
+    .btn-ghost {
+      background:#f8fafc;
+      color:#0f172a;
+      border-radius:12px;
+      padding:.45rem .85rem;
+      display:block;
+      text-align:left;
+      width:100%;
+      border: 1px solid transparent; /* keep border space constant to avoid layout shift */
+      min-height:44px;               /* consistent height so cards don't resize */
+      box-sizing: border-box;
+    }
+    .btn-ghost.selected {
+      border-color: var(--card-border); /* visual selected state without changing layout */
+      background: #f3f4f6;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02) inset;
+    }
     .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace }
     .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite; display:inline-block }
@@ -119,6 +137,10 @@
 
     /* small helpers */
     .text-muted { color: #6b7280; }
+
+    /* inputs: ensure they respect container width and avoid overflow */
+    input, textarea, select { box-sizing: border-box; max-width: 100%; }
+    .login-card { max-width: 440px; width: 100%; }
   </style>
 </head>
 <body class="bg-mist text-ink">
@@ -224,21 +246,18 @@
 
     // -------- dynamic grid editor (admin only)
     function EditableGrid({ sheet, rows, isAdmin, onRefresh, query }){
-      // all columns present
       const columns = useMemo(()=>{
         const set=new Set();
         rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
         return Array.from(set);
       },[rows]);
 
-      // filter rows by quick search across all fields
       const filteredRows = useMemo(()=>{
         const q=(query||"").trim().toLowerCase();
         if(!q) return rows;
         return rows.filter(r=>Object.values(r||{}).some(v=>String(v??'').toLowerCase().includes(q)));
       },[rows,query]);
 
-      // key column heuristic
       const keyField = useMemo(()=>{
         const candidates = {
           Issues: ['Tracking ID','Id','ID'],
@@ -255,7 +274,6 @@
         return candidates.find(c=>c in r0) || candidates[0];
       },[sheet,filteredRows,rows]);
 
-      // editable copies
       const [draft, setDraft] = useState(()=>filteredRows.map(r=>({...r})));
       useEffect(()=>{ setDraft(filteredRows.map(r=>({...r}))); },[filteredRows]);
 
@@ -289,7 +307,6 @@
         }catch(e){ showToast('Save all failed: '+String(e), 'error'); }
       }
 
-      // new row form
       const emptyRow = Object.fromEntries(columns.map(c=>[c,'']));
       const [newRow, setNewRow] = useState(emptyRow);
       useEffect(()=>{ const e=Object.fromEntries(columns.map(c=>[c,''])); setNewRow(e); },[columns.join('|')]);
@@ -309,11 +326,10 @@
             </div>
             <div className="flex items-center gap-2">
               {isAdmin && <Ghost onClick={saveAll} aria-label="Save all">Save all</Ghost>}
-              <div className="text-xs text-muted">{/* placeholder for future actions */}</div>
+              <div className="text-xs text-muted"></div>
             </div>
           </div>
 
-          {/* Add new */}
           {isAdmin && (
             <div className="mb-4">
               <div className="font-medium mb-2">Add to {sheet}</div>
@@ -331,7 +347,6 @@
             </div>
           )}
 
-          {/* Table / Rows */}
           <div className="overflow-auto">
             <table className="min-w-full text-sm" role="table" aria-label={sheet + " table"}>
               <thead>
@@ -493,7 +508,7 @@
             <aside className="grid gap-2">
               {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
                 <button key={tab}
-                  className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`}
+                  className={`btn-ghost text-left ${view===tab?'selected':''}`}
                   onClick={()=>{ setView(tab); setQuery(''); }}>
                   {tab==='dashboard'?'Dashboard':tab}
                 </button>
@@ -548,7 +563,7 @@
       }
       return (
         <div className="login-bg grid place-items-center p-6">
-          <div className="w-full max-w-md">
+          <div className="w-full login-card">
             <div className="card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <img src="android-chrome-192x192.png" className="w-12 h-12 rounded-md" alt="logo"/>
@@ -571,10 +586,9 @@
                   <Ghost onClick={()=>{ setU('demo'); setP('demo'); }}>Fill demo</Ghost>
                 </div>
                 {err && <div className="text-red-600 text-sm">{err}</div>}
-                <div className="text-xs text-muted mt-2">Backend: <code className="mono">{backend||'(not set)'}</code></div>
               </div>
             </div>
-            <div className="text-white/70 text-xs mt-3">Tip: press "/" to focus search when viewing a sheet.</div>
+            <!-- Backend debug and tip are intentionally hidden on login page for a cleaner look -->
           </div>
         </div>
       );
