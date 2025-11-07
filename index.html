@@ -7,59 +7,45 @@
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="assets/brand-mark.png" />
 
-  <!-- Tailwind (no build step) -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: { ink: "#0f172a", mist: "#f8fafc", card: "#ffffff", border: "#e5e7eb" }
+          colors: { ink:"#0f172a", mist:"#f8fafc", card:"#ffffff", border:"#e5e7eb" }
         }
       }
-    };
+    }
   </script>
 
-  <!-- React 18 UMD + Babel (JSX directly in the browser) -->
+  <!-- React + Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Configure your GAS Web App URL (override with ?gas=<url>) -->
+  <!-- GAS endpoint (override with ?gas=<url>) -->
   <script>
     window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
   </script>
 
   <style>
-    :root { --hdr: 64px; }
-    .card { background: #fff; border:1px solid #e5e7eb; border-radius: 16px; }
-    .btn  { background:#0f172a; color:#fff; border-radius:12px; padding:.65rem 1rem; }
-    .btn-secondary { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.55rem .9rem; }
-    .badge { font-size:.75rem; background:#f3f4f6; padding:.2rem .5rem; border-radius:.5rem; }
-
-    /* Login animation */
+    :root { --hdr:64px }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px }
+    .btn { background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem }
+    .btn-ghost { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem }
+    .badge { font-size:.75rem; background:#f3f4f6; padding:.2rem .5rem; border-radius:.5rem }
+    header { position:sticky; top:0; z-index:40; height:var(--hdr); backdrop-filter: blur(10px) saturate(160%);
+             background:rgba(255,255,255,.75); border-bottom:1px solid #e5e7eb }
     .login-bg {
-      background: radial-gradient(1200px 600px at 10% 10%, rgba(125, 211, 252,.35), transparent 40%),
-                  radial-gradient(900px 500px at 90% 10%, rgba(167, 139, 250,.35), transparent 45%),
-                  radial-gradient(1000px 700px at 50% 90%, rgba(74, 222, 128,.35), transparent 40%),
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.35), transparent 40%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.35), transparent 45%),
+                  radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.35), transparent 40%),
                   #0b1220;
-      animation: floaty 16s ease-in-out infinite alternate;
+      min-height:100vh
     }
-    @keyframes floaty {
-      0% { background-position: 0 0, 100% 0, 50% 100% }
-      100% { background-position: 0 -40px, 100% -30px, 50% calc(100% + 40px) }
-    }
-    .logo-pulse { animation: pulseLogo 2.8s ease-in-out infinite; }
-    @keyframes pulseLogo {
-      0%,100%{ transform: scale(1); filter: drop-shadow(0 8px 20px rgba(59,130,246,.09)); }
-      50%{ transform: scale(1.04); filter: drop-shadow(0 8px 28px rgba(167,139,250,.25)); }
-    }
-    .spin { border: 2px solid #fff; border-top-color: transparent; width: 14px; height: 14px; border-radius:50%; animation: s .9s linear infinite }
-    @keyframes s { to { transform: rotate(360deg) } }
-
-    /* sticky controls */
-    .sticky-top { position: sticky; top: var(--hdr); z-index: 30; }
-    header { position: sticky; top:0; z-index:40; height: var(--hdr); backdrop-filter: blur(10px) saturate(160%);
-             background: rgba(255,255,255,.75); border-bottom:1px solid #e5e7eb; }
+    .spin { border:2px solid #fff; border-top-color:transparent; width:14px; height:14px; border-radius:50%; animation: s .9s linear infinite }
+    @keyframes s { to { transform:rotate(360deg) } }
   </style>
 </head>
 <body class="bg-mist text-ink">
@@ -68,200 +54,214 @@
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
 
-    // ---------- Config ----------
+    // ---------------- Config / helpers ----------------
     const SOCIETY = "Global Hillview, Sec-11, Sohna, Gurgaon";
     const INR = new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 });
-    const qs = new URLSearchParams(location.search);
+    const qs  = new URLSearchParams(location.search);
     const GAS = (qs.get("gas") || window.ENV_GAS_URL || "").trim();
 
-    // ---------- Utils ----------
-    const parseDate = (v)=> v ? new Date(v) : null;
-    const ddmmyyyy = (v)=> {
-      const d = parseDate(v); if(!d || isNaN(d)) return "";
+    const ddmmyyyy = (v)=>{
+      if(!v) return "";
+      const d = new Date(v);
+      if(Number.isNaN(d)) return String(v);
       const dd = String(d.getDate()).padStart(2,"0");
       const mm = String(d.getMonth()+1).padStart(2,"0");
       return `${dd}-${mm}-${d.getFullYear()}`;
     };
-    const fmtDT = (d)=> {
-      if(!d) return "";
+    const fmtDT = (v)=>{
+      if(!v) return "";
+      const d = new Date(v); if(Number.isNaN(d)) return String(v);
       const dd = String(d.getDate()).padStart(2,"0");
       const mm = String(d.getMonth()+1).padStart(2,"0");
       const HH = String(d.getHours()).padStart(2,"0");
       const MM = String(d.getMinutes()).padStart(2,"0");
       return `${dd}-${mm}-${d.getFullYear()} ${HH}:${MM}`;
     };
+    const pickCols = (rows)=> rows.length ? Object.keys(rows[0]) : [];
 
     async function fetchWithTimeout(url, opts={}, ms=30000){
-      const ctl = new AbortController(); const id = setTimeout(()=>ctl.abort(), ms);
-      try { return await fetch(url, { ...opts, signal: ctl.signal }); }
+      const ctl = new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
+      try { return await fetch(url, {...opts, signal: ctl.signal}); }
       finally { clearTimeout(id) }
     }
+    async function getJSON(action){
+      const u = new URL(GAS); u.searchParams.set("action", action);
+      const r = await fetchWithTimeout(u, { cache:"no-store" });
+      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      return r.json();
+    }
     async function postJSON(body){
-      const res = await fetchWithTimeout(GAS, {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
+      const r = await fetchWithTimeout(GAS, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
         body: JSON.stringify(body)
       });
-      if(!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
-      return res.json();
+      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      return r.json();
     }
-    async function getJSON(action, params = {}) {
-  const url = new URL(GAS);
-  url.searchParams.set("action", action);
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v ?? "");
-  }
-  const res = await fetchWithTimeout(url.toString(), { method: "GET", cache: "no-store" });
-  if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
-  return res.json();
-}
 
     const api = {
-      async login(u,p){ return getJSON("login", { u, p }); },
-      async sessionInfo(token){ return postJSON({ op:"sessionInfo", token }); },
-      async update(token, payload){ return postJSON({ op:"update", token, ...payload }); },
-      async list(){
-        const u = new URL(GAS); u.searchParams.set("mode","data");
-        const r = await fetchWithTimeout(u, { cache:"no-store" });
-        if(!r.ok) throw new Error(await r.text());
-        return r.json();
+      login:        (u,p)=> postJSON({ op:"login", username:u, password:p }),
+      sessionInfo:  (t)=>   postJSON({ op:"sessionInfo", token:t }),
+      updateIssue:  (t,p)=> postJSON({ op:"update", token:t, ...p }),   // id + (status|remark|resolved)
+      createNotice: (p)=>   getJSON("noop").then(()=>postJSON({ ...p })), // not used here; we call action=createNotice below
+      listAll: async ()=>{
+        const calls = [
+          ["dir", "listDirectory"],
+          ["nts", "listNotices"],
+          ["iss", "listIssues"],
+          ["txs", "listTransactions"],
+          ["docs","listDocuments"],
+          ["vts", "listVoters"],
+          ["obs", "listOpeningBalances"],
+          ["coa", "listChartOfAccounts"],
+          ["usr", "listUsers"],
+        ];
+        const res = await Promise.allSettled(calls.map(([k,a])=>getJSON(a)));
+        const obj = {};
+        calls.forEach(([k],i)=>{
+          obj[k] = res[i].status==="fulfilled" ? (res[i].value.rows || []) : [];
+        });
+        return obj;
+      },
+      // legacy create endpoints (action=…)
+      create(action, payload){
+        const u = new URL(GAS); u.searchParams.set("action", action);
+        return fetchWithTimeout(u, {
+          method:"POST",
+          headers:{ "Content-Type":"text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        }).then(r=>r.json());
       }
     };
 
-    // ---------- UI atoms ----------
-    const Btn = ({children, className="", ...rest}) => <button className={"btn "+className} {...rest}>{children}</button>;
-    const Btn2 = ({children, className="", ...rest}) => <button className={"btn-secondary "+className} {...rest}>{children}</button>;
+    // ---------------- Atoms ----------------
+    const Btn = (p)=><button {...p} className={"btn "+(p.className||"")} />;
+    const BtnGhost = (p)=><button {...p} className={"btn-ghost "+(p.className||"")} />;
 
-    // ---------- Login Screen (animated) ----------
-    const Login = ({ onSuccess })=>{
-      const [u,setU] = useState("");
-      const [p,setP] = useState("");
-      const [err,setErr] = useState("");
-      const [busy,setBusy] = useState(false);
-
+    // ---------------- Login ----------------
+    function Login({ onOK }){
+      const [u,setU] = useState(""); const [p,setP] = useState("");
+      const [err,setErr] = useState(""); const [busy,setBusy] = useState(false);
       async function go(){
         if(busy) return; setBusy(true); setErr("");
         try{
           const r = await api.login(u,p);
           if(r?.ok && r?.token){
             localStorage.setItem("session", r.token);
-            onSuccess({ token: r.token, role: (r.role||"user").toLowerCase() });
+            onOK({ token:r.token, role:(r.role||"user").toLowerCase() });
           } else setErr(r?.error || "Invalid credentials");
         }catch(e){ setErr(String(e)); }
         finally{ setBusy(false); }
       }
-
       return (
-        <div className="min-h-screen login-bg grid place-items-center p-6">
+        <div className="login-bg grid place-items-center p-6">
           <div className="w-full max-w-md">
             <div className="card p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <img src="assets/logo.png" className="w-10 h-10 rounded-md logo-pulse" alt="logo"/>
+              <div className="flex items-center gap-3 mb-3">
+                <img src="assets/logo.png" className="w-10 h-10 rounded-md" alt="logo"/>
                 <div className="font-semibold">Global Hillview — Society Portal</div>
               </div>
               <div className="text-sm text-gray-500 mb-4">Sign in to continue</div>
               <div className="grid gap-3">
                 <div>
                   <label className="text-sm text-gray-500">Username</label>
-                  <input className="w-full border rounded-xl p-2 mt-1" value={u} onChange={e=>setU(e.target.value)} autoFocus/>
+                  <input className="w-full border rounded-xl p-2 mt-1" value={u} onChange={e=>setU(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Password</label>
-                  <input className="w-full border rounded-xl p-2 mt-1" type="password" value={p} onChange={e=>setP(e.target.value)}/>
+                  <input className="w-full border rounded-xl p-2 mt-1" type="password" value={p} onChange={e=>setP(e.target.value)} />
                 </div>
-                <Btn onClick={go} className="flex items-center gap-2 justify-center">
-                  {busy && <span className="spin"></span>} <span>{busy ? "Signing in…" : "Sign in"}</span>
-                </Btn>
+                <Btn onClick={go} className="flex items-center gap-2 justify-center">{busy && <span className="spin"></span>} {busy?"Signing in…":"Sign in"}</Btn>
                 {err && <div className="text-red-600 text-sm">{err}</div>}
               </div>
             </div>
             <div className="flex items-center justify-between mt-3 text-white/70 text-xs px-1">
               <span>Backend: <code>{GAS || "(not set)"}</code></span>
-              <span>Tip: use <code>?gas=&lt;url&gt;</code> to override</span>
+              <span>Use <code>?gas=&lt;url&gt;</code> to override</span>
             </div>
           </div>
         </div>
       );
-    };
+    }
 
-    // ---------- Header ----------
-    const Header = ({user, onLogout})=>(
+    // ---------------- Header + Shell ----------------
+    const Header = ({role,onLogout})=>(
       <header>
-        <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="assets/brand-mark.png" className="w-8 h-8 rounded-md" alt="brand"/>
             <div className="font-semibold">{SOCIETY}</div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="badge">Logged in: {user.role}</span>
-            <Btn2 onClick={onLogout}>Logout</Btn2>
+            <span className="badge">Logged in: {role}</span>
+            <BtnGhost onClick={onLogout}>Logout</BtnGhost>
           </div>
         </div>
       </header>
     );
 
-    // ---------- Dashboard (KPIs + Filters + Grid matching your GAS page) ----------
-    function Dashboard({ rows, isAdmin, onUpdate }){
+    const Sidebar = ({view,setView})=>{
+      const Item = ({id,label})=>(
+        <button onClick={()=>setView(id)} className={"w-full text-left btn-ghost mb-2 "+(view===id?"ring-2 ring-gray-300":"")}>{label}</button>
+      );
+      return (
+        <aside className="w-full md:w-60 p-3">
+          <Item id="dashboard" label="Dashboard" />
+          <Item id="notices"   label="Notices" />
+          <Item id="tickets"   label="Tickets" />
+          <Item id="directory" label="Directory" />
+          <Item id="payments"  label="Payments" />
+          <Item id="opening"   label="OpeningBalances" />
+          <Item id="coa"       label="ChartOfAccounts" />
+          <Item id="documents" label="Documents" />
+          <Item id="voters"    label="Voters" />
+          <Item id="admin"     label="Admin" />
+        </aside>
+      );
+    };
+
+    // ---------------- Dashboard (Issues KPIs + filters + grid) ----------------
+    function IssuesDashboard({ rows, isAdmin, onUpdate }){
       const [from,setFrom]=useState(""); const [to,setTo]=useState("");
       const [tower,setTower]=useState(""); const [flat,setFlat]=useState("");
       const [issue,setIssue]=useState(""); const [status,setStatus]=useState(""); const [minRating,setMinRating]=useState("");
 
+      const parsed = useMemo(()=>rows.map(r=>{
+        const raised = r["Date and Time Raised"] ? new Date(r["Date and Time Raised"]) : null;
+        const resolved = r["Date and Time Resolved"] ? new Date(r["Date and Time Resolved"]) : null;
+        return {...r, __raised:raised, __resolved:resolved, __ms: (raised && resolved)? (resolved - raised) : null};
+      }),[rows]);
+
       const filtered = useMemo(()=>{
-        let arr = rows.slice();
+        let a = parsed.slice();
         const dFrom = from ? new Date(from) : null;
-        const dTo = to ? new Date(to+"T23:59:59") : null;
-        if(dFrom) arr = arr.filter(x => parseDate(x["Date and Time Raised"]) >= dFrom);
-        if(dTo)   arr = arr.filter(x => parseDate(x["Date and Time Raised"]) <= dTo);
-        if(tower) arr = arr.filter(x=> String(x["Tower"]||"").toLowerCase().includes(tower.toLowerCase()));
-        if(flat)  arr = arr.filter(x=> String(x["Flat"]||"").toLowerCase().includes(flat.toLowerCase()));
-        if(issue) arr = arr.filter(x=> String(x["Issue"]||"").toLowerCase().includes(issue.toLowerCase()) || String(x["Description"]||"").toLowerCase().includes(issue.toLowerCase()));
-        if(status) arr = arr.filter(x=> String(x["Status"]||"").toLowerCase() === status.toLowerCase());
-        if(minRating) arr= arr.filter(x=> Number(x["Feedback Rating"]||0) >= Number(minRating));
-        return arr.map(r=>{
-          const raised = parseDate(r["Date and Time Raised"]);
-          const resolved = parseDate(r["Date and Time Resolved"]);
-          return { ...r, __raised: raised, __resolved: resolved, __ms: (raised && resolved) ? (resolved - raised) : null };
-        });
-      },[rows,from,to,tower,flat,issue,status,minRating]);
+        const dTo   = to ? new Date(to+"T23:59:59") : null;
+        if(dFrom) a = a.filter(x=> x.__raised && x.__raised >= dFrom);
+        if(dTo)   a = a.filter(x=> x.__raised && x.__raised <= dTo);
+        if(tower) a = a.filter(x=> String(x["Tower"]||"").toLowerCase().includes(tower.toLowerCase()));
+        if(flat)  a = a.filter(x=> String(x["Flat"]||"").toLowerCase().includes(flat.toLowerCase()));
+        if(issue) a = a.filter(x=> String(x["Issue"]||"").toLowerCase().includes(issue.toLowerCase()) || String(x["Description"]||"").toLowerCase().includes(issue.toLowerCase()));
+        if(status)a = a.filter(x=> String(x["Status"]||"").toLowerCase() === status.toLowerCase());
+        if(minRating)a = a.filter(x=> Number(x["Feedback Rating"]||0) >= Number(minRating));
+        return a;
+      },[parsed,from,to,tower,flat,issue,status,minRating]);
 
       const kpi = useMemo(()=>{
         const total = filtered.length;
-        const open = filtered.filter(x=>x["Status"]==="Open").length;
-        const prog = filtered.filter(x=>x["Status"]==="InProgress").length;
-        const res  = filtered.filter(x=>x["Status"]==="Resolved").length;
-        const done = filtered.filter(x=>x.__ms!=null);
-        const avg = done.length ? Math.round(done.reduce((a,b)=>a+b.__ms,0)/done.length) : 0;
-        const mm = Math.round(avg/60000), h=Math.floor(mm/60), d=Math.floor(h/24);
-        const ktime=`${d}d ${h%24}h ${mm%60}m`;
+        const open  = filtered.filter(x=>x["Status"]==="Open").length;
+        const prog  = filtered.filter(x=>x["Status"]==="InProgress").length;
+        const res   = filtered.filter(x=>x["Status"]==="Resolved").length;
+        const done  = filtered.filter(x=>x.__ms!=null);
+        const avgMs = done.length ? Math.round(done.reduce((a,b)=>a+b.__ms,0)/done.length) : 0;
+        const mm = Math.round(avgMs/60000), h=Math.floor(mm/60), d=Math.floor(h/24);
+        const ktime = `${d}d ${h%24}h ${mm%60}m`;
         const rating = filtered.length ? (filtered.reduce((a,b)=>a+Number(b["Feedback Rating"]||0),0)/filtered.length).toFixed(2) : "0.00";
         return { total, open, prog, res, ktime, rating };
       },[filtered]);
 
-      const [sort,setSort]=useState({key:"Date and Time Raised",dir:"desc"});
-      const sorted = useMemo(()=>{
-        const s=filtered.slice();
-        s.sort((a,b)=>{
-          const k=sort.key;
-          const av = k==="Time Taken" ? a.__ms : (k==="Date and Time Raised"? a.__raised : (k==="Date and Time Resolved"?a.__resolved : a[k]));
-          const bv = k==="Time Taken" ? b.__ms : (k==="Date and Time Raised"? b.__raised : (k==="Date and Time Resolved"?b.__resolved : b[k]));
-          if(av<bv) return sort.dir==="asc"?-1:1;
-          if(av>bv) return sort.dir==="asc"? 1:-1;
-          return 0;
-        });
-        return s;
-      },[filtered,sort]);
-
-      function th(lbl){
-        const toggle=()=> setSort(s=>({key:lbl, dir: s.key===lbl && s.dir==="asc" ? "desc":"asc"}));
-        const ind = sort.key===lbl ? (sort.dir==="asc"?" ▲":" ▼") : "";
-        return <th className="whitespace-nowrap cursor-pointer" onClick={toggle}>{lbl}{ind}</th>;
-      }
-
-      async function saveStatus(id,val){ await onUpdate({ id, status:val }); }
-      async function saveRemark(id,val){ await onUpdate({ id, remark:val }); }
-
       return (
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           {/* KPIs */}
           <div className="grid md:grid-cols-6 gap-3">
             <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Total</div><div className="text-2xl font-semibold">{kpi.total}</div></div>
@@ -296,38 +296,25 @@
             <table className="min-w-full text-sm">
               <thead className="border-b">
                 <tr className="text-left">
-                  {th("Tracking ID")}
-                  {th("Date and Time Raised")}
-                  {th("Tower")}
-                  {th("Flat")}
-                  {th("Issue")}
-                  {th("Description")}
-                  <th>Media</th>
-                  {th("Status")}
-                  {th("Redressal Remark")}
-                  {th("User ID")}
-                  {th("Date and Time Resolved")}
-                  {th("Time Taken")}
-                  {th("Feedback Rating")}
+                  <th>Tracking ID</th><th>Date and Time Raised</th><th>Tower</th><th>Flat</th>
+                  <th>Issue</th><th>Description</th><th>Media</th><th>Status</th>
+                  <th>Redressal Remark</th><th>User ID</th><th>Date and Time Resolved</th>
+                  <th>Time Taken</th><th>Feedback Rating</th>
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((r, i) => {
-                  const id = r["Tracking ID"] || `row-${i}`;
-                  const raised = fmtDT(r.__raised);
-                  const resolved = fmtDT(r.__resolved);
+                {filtered.map((r,i)=>{
+                  const id = r["Tracking ID"]||`row-${i}`;
                   const timeTaken = r.__ms!=null ? (()=>{ const m=Math.round(r.__ms/60000); const h=Math.floor(m/60); const d=Math.floor(h/24); return `${d}d ${h%24}h ${m%60}m`; })() : "";
                   return (
                     <tr key={id} className="border-t align-top">
                       <td className="whitespace-nowrap">{id}</td>
-                      <td className="whitespace-nowrap">{raised}</td>
+                      <td className="whitespace-nowrap">{fmtDT(r["Date and Time Raised"])}</td>
                       <td className="whitespace-nowrap">{r["Tower"]||""}</td>
                       <td className="whitespace-nowrap">{r["Flat"]||""}</td>
                       <td>{r["Issue"]||""}</td>
                       <td>{r["Description"]||""}</td>
-                      <td className="whitespace-nowrap">
-                        {r["Media URL"] ? <a className="text-blue-600 underline" href={r["Media URL"]} target="_blank" rel="noreferrer">Open</a> : ""}
-                      </td>
+                      <td className="whitespace-nowrap">{r["Media URL"] ? <a className="underline" href={r["Media URL"]} target="_blank" rel="noreferrer">Open</a> : ""}</td>
                       <td className="whitespace-nowrap">
                         {isAdmin ? (
                           <select defaultValue={r["Status"]||"Open"} onChange={e=>onUpdate({ id, status:e.target.value })}>
@@ -339,15 +326,15 @@
                         {isAdmin ? (
                           <div className="flex items-center gap-2">
                             <textarea className="border rounded-lg p-2 w-full" rows="2" defaultValue={r["Redressal Remark"]||""}></textarea>
-                            <Btn2 onClick={e=>{
+                            <BtnGhost onClick={e=>{
                               const val = e.currentTarget.parentElement.querySelector("textarea").value;
                               onUpdate({ id, remark: val });
-                            }}>Save</Btn2>
+                            }}>Save</BtnGhost>
                           </div>
                         ) : (r["Redressal Remark"]||"")}
                       </td>
                       <td className="whitespace-nowrap">{r["User ID"]||""}</td>
-                      <td className="whitespace-nowrap">{resolved}</td>
+                      <td className="whitespace-nowrap">{fmtDT(r["Date and Time Resolved"])}</td>
                       <td className="whitespace-nowrap">{timeTaken}</td>
                       <td className="whitespace-nowrap">{r["Feedback Rating"]||""}</td>
                     </tr>
@@ -360,47 +347,220 @@
       );
     }
 
+    // ---------------- Plain tables for other tabs (show ALL columns) ----------------
+    const TableAll = ({title,rows,formatters={}})=>{
+      const cols = pickCols(rows);
+      return (
+        <div className="px-4 py-4">
+          <div className="card p-4">
+            <div className="font-medium mb-2">{title}</div>
+            <div className="overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead><tr className="text-left text-gray-600">{cols.map(c=><th key={c} className="py-2 pr-4 whitespace-nowrap">{c}</th>)}</tr></thead>
+                <tbody>
+                  {rows.map((r,i)=>(
+                    <tr key={i} className="border-t">
+                      {cols.map(c=>{
+                        const v = r[c];
+                        const fmt = formatters[c];
+                        const out = fmt ? fmt(v) : v;
+                        return <td key={c} className="py-2 pr-4 whitespace-nowrap">{String(out ?? "")}</td>
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ---------------- Payments + Finance (P&L + simple Balance Sheet) ----------------
+    function Payments({ tx, opening, onAdd, isAdmin }){
+      const [openForm,setOpenForm] = useState(false);
+      const [t,setT] = useState({ Date:"", Type:"Credit", Category:"", "Sub-category":"", Amount:"" });
+
+      const totals = useMemo(()=>{
+        const paid = tx.filter(x=>(x.Type||"").toLowerCase()==="credit").reduce((a,b)=>a+Number(b.Amount||0),0);
+        const due  = tx.filter(x=>(x.Type||"").toLowerCase()==="debit").reduce((a,b)=>a+Number(b.Amount||0),0);
+        return { paid, due, net: paid - due };
+      },[tx]);
+
+      // P&L (period selector optional – here use whole data)
+      const pnl = useMemo(()=>{
+        const income  = tx.filter(x=>(x.Type||"").toLowerCase()==="credit").reduce((a,b)=>a+Number(b.Amount||0),0);
+        const expense = tx.filter(x=>(x.Type||"").toLowerCase()==="debit").reduce((a,b)=>a+Number(b.Amount||0),0);
+        return { income, expense, profit: income - expense };
+      },[tx]);
+
+      const balance = useMemo(()=>{
+        const openingSum = opening.reduce((a,b)=> a + Number(b.Amount||b["Opening Balance"]||0), 0);
+        return { opening: openingSum, closing: openingSum + totals.net };
+      },[opening, totals]);
+
+      async function submit(){
+        if(!isAdmin) return alert("Only Admin can add transactions.");
+        const payload = {
+          Date: t.Date || new Date().toISOString(),
+          Type: t.Type, Category: t.Category, "Sub-category": t["Sub-category"],
+          Amount: Number(t.Amount||0)
+        };
+        await onAdd(payload);
+        setOpenForm(false); setT({ Date:"", Type:"Credit", Category:"", "Sub-category":"", Amount:"" });
+      }
+
+      return (
+        <div className="px-4 py-4 grid gap-4">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Collected</div><div className="text-2xl font-semibold">{INR.format(totals.paid)}</div></div>
+            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Debits</div><div className="text-2xl font-semibold">{INR.format(totals.due)}</div></div>
+            <div className="card p-4"><div className="text-xs text-gray-500 uppercase">Net</div><div className="text-2xl font-semibold">{INR.format(totals.net)}</div></div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="card p-4">
+              <div className="font-medium mb-2">Profit &amp; Loss</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Income (Credits)</div><div className="text-right font-semibold">{INR.format(pnl.income)}</div>
+                <div>Expenses (Debits)</div><div className="text-right font-semibold">{INR.format(pnl.expense)}</div>
+                <div className="border-t mt-2 pt-2">Profit</div><div className="text-right font-semibold border-t mt-2 pt-2">{INR.format(pnl.profit)}</div>
+              </div>
+            </div>
+            <div className="card p-4">
+              <div className="font-medium mb-2">Balance Sheet (Simple)</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Opening Balances</div><div className="text-right font-semibold">{INR.format(balance.opening)}</div>
+                <div>Net Movement</div><div className="text-right font-semibold">{INR.format(totals.net)}</div>
+                <div className="border-t mt-2 pt-2">Closing Balance</div><div className="text-right font-semibold border-t mt-2 pt-2">{INR.format(balance.closing)}</div>
+              </div>
+            </div>
+          </div>
+
+          {isAdmin && (
+            <>
+              <Btn className="w-fit" onClick={()=>setOpenForm(v=>!v)}>➕ Add Transaction</Btn>
+              {openForm && (
+                <div className="card p-4">
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div><label className="text-sm text-gray-500">Date</label><input type="date" className="border rounded-lg p-2 w-full" value={t.Date} onChange={e=>setT({...t,Date:e.target.value})} /></div>
+                    <div><label className="text-sm text-gray-500">Type</label><select className="border rounded-lg p-2 w-full" value={t.Type} onChange={e=>setT({...t,Type:e.target.value})}><option>Credit</option><option>Debit</option></select></div>
+                    <div><label className="text-sm text-gray-500">Category</label><input className="border rounded-lg p-2 w-full" value={t.Category} onChange={e=>setT({...t,Category:e.target.value})} /></div>
+                    <div><label className="text-sm text-gray-500">Sub-category</label><input className="border rounded-lg p-2 w-full" value={t["Sub-category"]} onChange={e=>setT({...t,"Sub-category":e.target.value})} /></div>
+                    <div className="md:col-span-2"><label className="text-sm text-gray-500">Amount</label><input type="number" className="border rounded-lg p-2 w-full" value={t.Amount} onChange={e=>setT({...t,Amount:e.target.value})} /></div>
+                    <div className="md:col-span-2"><Btn onClick={submit}>Save</Btn></div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="card p-4">
+            <div className="font-medium mb-2">Transactions</div>
+            <div className="overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead><tr className="text-left text-gray-600"><th>Date</th><th>Type</th><th>Category</th><th>Sub-category</th><th>Amount</th></tr></thead>
+                <tbody>
+                  {tx.map((r,i)=>(
+                    <tr key={i} className="border-t">
+                      <td className="py-2 pr-4 whitespace-nowrap">{ddmmyyyy(r.Date)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Type}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Category}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r["Sub-category"]}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{INR.format(Number(r.Amount||0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------------- Admin (login state only) ----------------
+    function Admin({ role }){
+      return (
+        <div className="px-4 py-4">
+          <div className="card p-4">
+            <div className="font-medium mb-1">Admin</div>
+            <div className="text-sm text-gray-600">Only admins can post notices, raise/edit tickets, and view/add transactions. Your role: <span className="badge">{role}</span></div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------------- App ----------------
     function App(){
       const [session,setSession] = useState({ token:null, role:null });
-      const [rows,setRows] = useState([]);
-      const isAdmin = session.role === "admin";
+      const [view,setView] = useState("dashboard");
+
+      // data store
+      const [dir,setDir]=useState([]), [nts,setNts]=useState([]), [iss,setIss]=useState([]),
+            [txs,setTxs]=useState([]), [docs,setDocs]=useState([]), [vts,setVts]=useState([]),
+            [obs,setObs]=useState([]), [coa,setCoa]=useState([]), [usr,setUsr]=useState([]);
+
+      const isAdmin = session.role==="admin";
 
       useEffect(()=>{
         (async ()=>{
-          const tok = new URLSearchParams(location.search).get("session") || localStorage.getItem("session");
+          // try resume
+          const tok = qs.get("session") || localStorage.getItem("session");
           if(tok){
             try{
-              const ok = await api.sessionInfo(tok);
-              if(ok?.ok && ok?.info?.ok){
-                setSession({ token: tok, role: (ok.info.role||"user").toLowerCase() });
-              } else {
-                localStorage.removeItem("session");
-              }
+              const r = await api.sessionInfo(tok);
+              if(r?.ok && r?.role){
+                setSession({ token: tok, role:(r.role||"user").toLowerCase() });
+              } else localStorage.removeItem("session");
             }catch(_){}
           }
+          // load all tabs (read-only works even before login)
           try{
-            const data = await api.list();
-            setRows(Array.isArray(data)?data:(data.rows||[]));
-          }catch(e){ /* page still loads, login will fix CORS */ }
+            const all = await api.listAll();
+            setDir(all.dir); setNts(all.nts); setIss(all.iss); setTxs(all.txs);
+            setDocs(all.docs); setVts(all.vts); setObs(all.obs); setCoa(all.coa); setUsr(all.usr);
+          }catch(_){}
         })();
       },[]);
 
-      async function update(payload){
+      async function updateIssue(payload){
         if(!session.token) return alert("Not authenticated");
-        try{
-          await api.update(session.token, payload);
-          const data = await api.list(); setRows(Array.isArray(data)?data:(data.rows||[]));
-        }catch(e){ alert(String(e)); }
+        await api.updateIssue(session.token, payload);
+        const all = await api.listAll(); setIss(all.iss);
       }
+      async function addTransaction(p){
+        if(!isAdmin) return;
+        await api.create("createTransaction", p);
+        const all = await api.listAll(); setTxs(all.txs);
+      }
+
       function logout(){ localStorage.removeItem("session"); setSession({token:null, role:null}); }
 
       if(!session.token || !session.role){
-        return <Login onSuccess={(s)=>{ setSession(s); api.list().then(d=>setRows(Array.isArray(d)?d:(d.rows||[]))); }} />
+        return <Login onOK={(s)=>{ setSession(s); api.listAll().then(all=>{ setIss(all.iss); setTxs(all.txs); setDir(all.dir); setNts(all.nts); setDocs(all.docs); setVts(all.vts); setObs(all.obs); setCoa(all.coa); setUsr(all.usr); }); }} />
       }
+
       return (
         <>
-          <Header user={{role:session.role}} onLogout={logout} />
-          <Dashboard rows={rows} isAdmin={isAdmin} onUpdate={update} />
+          <Header role={session.role} onLogout={logout} />
+          <div className="max-w-7xl mx-auto grid md:grid-cols-[240px,1fr] gap-4 mt-4">
+            <Sidebar view={view} setView={setView} />
+            <main>
+              {view==="dashboard" && <IssuesDashboard rows={iss} isAdmin={isAdmin} onUpdate={updateIssue} />}
+              {view==="tickets"   && <IssuesDashboard rows={iss} isAdmin={isAdmin} onUpdate={updateIssue} />}
+
+              {view==="payments"  && <Payments tx={txs} opening={obs} onAdd={addTransaction} isAdmin={isAdmin} />}
+
+              {view==="notices"   && <TableAll title="Notices" rows={nts} formatters={{ Date: ddmmyyyy }} />}
+              {view==="directory" && <TableAll title="Directory" rows={dir} />}
+              {view==="opening"   && <TableAll title="Opening Balances" rows={obs} formatters={{ Amount:(v)=>INR.format(Number(v||0)) }} />}
+              {view==="coa"       && <TableAll title="Chart of Accounts" rows={coa} />}
+              {view==="documents" && <TableAll title="Documents" rows={docs} formatters={{ Date: ddmmyyyy, Link:(v)=> v?`Open: ${v}`:"" }} />}
+              {view==="voters"    && <TableAll title="Voters" rows={vts} />}
+
+              {view==="admin"     && <Admin role={session.role} />}
+            </main>
+          </div>
         </>
       );
     }
