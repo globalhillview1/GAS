@@ -72,11 +72,11 @@
     }
     
     .fade-in {
-      animation: fadeIn 0.3s ease-in;
+      animation: fadeIn 0.25s ease-in;
     }
     
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
+      from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
     
@@ -108,7 +108,8 @@
     .status-open { background: #fef3c7; color: #92400e; }
     .status-progress { background: #dbeafe; color: #1e40af; }
     .status-closed { background: #d1fae5; color: #065f46; }
-    
+
+    /* modal */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -117,42 +118,28 @@
       align-items: center;
       justify-content: center;
       z-index: 1000;
-      animation: fadeIn 0.2s ease;
+      animation: fadeIn 0.12s ease;
     }
-    
     .modal-content {
       background: white;
-      border-radius: 16px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      animation: slideUp 0.3s ease;
-    }
-    
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      border-radius: 12px;
+      width: 96%;
+      max-width: 820px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.12);
     }
     
     input, textarea, select {
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
-    
     input:focus, textarea:focus, select:focus {
       outline: none;
       border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.06);
     }
-    
-    .search-box {
-      position: relative;
-    }
-    
-    .search-box input {
-      padding-left: 2.5rem;
-    }
-    
+
+    .search-box { position: relative; }
+    .search-box input { padding-left: 2.5rem; }
     .search-icon {
       position: absolute;
       left: 0.75rem;
@@ -472,47 +459,146 @@
       );
     }
 
-    // Data Table Component
-    function DataTable({ title, data, searchable = true }) {
+    // Data Table Component with admin edit/add support
+    function DataTable({ title, data = [], isAdmin = false, onSaved = ()=>{} }) {
       const [search, setSearch] = useState('');
-      
+      const [modalOpen, setModalOpen] = useState(false);
+      const [editingRow, setEditingRow] = useState(null); // null for create, index for edit
+      const [form, setForm] = useState({});
+      const [saving, setSaving] = useState(false);
+
+      // compute columns based on data (fallback to empty)
       const columns = useMemo(() => {
-        if (!data.length) return [];
-        return Object.keys(data[0]);
+        if (!data || data.length === 0) return [];
+        const set = new Set();
+        data.forEach(r => Object.keys(r || {}).forEach(k => set.add(k)));
+        return Array.from(set);
       }, [data]);
 
+      // filter
       const filtered = useMemo(() => {
         if (!search.trim()) return data;
         const q = search.toLowerCase();
-        return data.filter(row => 
-          Object.values(row).some(v => 
-            String(v).toLowerCase().includes(q)
-          )
-        );
+        return data.filter(row => Object.values(row || {}).some(v => String(v || '').toLowerCase().includes(q)));
       }, [data, search]);
+
+      // find key column heuristic
+      function findKeyColumn(sampleRow = {}) {
+        const candidates = ['ID','Id','Serial Number','Serial','Tracking ID','Code','Username'];
+        for (const c of candidates) if (c in sampleRow) return c;
+        return columns[0] || 'ID'; // fallback
+      }
+
+      function openCreate() {
+        if (columns.length === 0) {
+          // no schema: show JSON editor
+          setForm({ __rawJson: '{}' });
+        } else {
+          setForm(Object.fromEntries(columns.map(c => [c, ''])));
+        }
+        setEditingRow(null);
+        setModalOpen(true);
+      }
+
+      function openEdit(idx) {
+        const row = filtered[idx];
+        if (!row) return;
+        setForm({...row});
+        setEditingRow({ idx, sourceRow: row });
+        setModalOpen(true);
+      }
+
+      async function handleSave(e) {
+        e && e.preventDefault();
+        setSaving(true);
+        try {
+          if (columns.length === 0) {
+            // raw JSON
+            const obj = JSON.parse(form.__rawJson || '{}');
+            await api.createRow(title, obj);
+            showToast('Added', 'success');
+          } else {
+            if (editingRow) {
+              // upsert: determine key
+              const keyCol = findKeyColumn(editingRow.sourceRow || form);
+              const keyVal = form[keyCol] ?? editingRow.sourceRow[keyCol];
+              await api.upsertRow(title, keyCol, { ...editingRow.sourceRow, ...form, [keyCol]: keyVal });
+              showToast('Saved', 'success');
+            } else {
+              // create
+              await api.createRow(title, form);
+              showToast('Added', 'success');
+            }
+          }
+          setModalOpen(false);
+          onSaved(); // parent should refresh
+        } catch (err) {
+          console.error(err);
+          showToast('Save failed: ' + String(err), 'error');
+        } finally {
+          setSaving(false);
+        }
+      }
+
+      function renderFormInputs() {
+        if (columns.length === 0) {
+          return (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Row JSON</label>
+              <textarea
+                rows="8"
+                value={form.__rawJson || ''}
+                onChange={e => setForm(f => ({...f, __rawJson: e.target.value}))}
+                className="w-full border rounded-lg p-3"
+              />
+              <p className="text-xs text-gray-500 mt-2">Provide a JSON object for the new row, e.g. {"{"}"Name":"John","Flat":"A-101"{"}"}.</p>
+            </div>
+          );
+        }
+
+        return columns.map(col => (
+          <div key={col} className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{col}</label>
+            <input
+              type="text"
+              value={form[col] ?? ''}
+              onChange={e => setForm(f => ({...f, [col]: e.target.value}))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+        ));
+      }
 
       return (
         <div className="bg-white rounded-2xl shadow-sm fade-in">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between gap-4">
+            <div>
               <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-              {searchable && (
-                <div className="search-box">
-                  <svg className="search-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64"
-                  />
+              <div className="text-sm text-gray-500 mt-1">Showing {filtered.length} of {data.length}</div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="search-box">
+                <svg className="search-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64"
+                />
+              </div>
+
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <button onClick={openCreate} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">Add</button>
                 </div>
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -522,6 +608,7 @@
                       {col}
                     </th>
                   ))}
+                  {isAdmin && <th className="px-6 py-3 text-xs text-gray-500">Actions</th>}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -534,25 +621,64 @@
                             {row[col] || 'Open'}
                           </span>
                         ) : (
-                          String(row[col] || '')
+                          String(row[col] ?? '')
                         )}
                       </td>
                     ))}
+
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEdit(i)}
+                            className="text-sm px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
-            
+
             {filtered.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 No data found
               </div>
             )}
           </div>
-          
+
           <div className="px-6 py-4 border-t border-gray-200 text-sm text-gray-600">
             Showing {filtered.length} of {data.length} entries
           </div>
+
+          {modalOpen && (
+            <div className="modal-overlay" role="dialog" aria-modal="true">
+              <div className="modal-content">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">{editingRow ? 'Edit row' : 'Add row'} — {title}</h3>
+                  <div>
+                    <button onClick={() => setModalOpen(false)} className="text-gray-600 hover:text-gray-900">Close</button>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSave}>
+                  <div className="max-h-[60vh] overflow-auto pr-2">
+                    {renderFormInputs()}
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <button type="submit" disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                      {saving ? 'Saving...' : (editingRow ? 'Save changes' : 'Add row')}
+                    </button>
+                    <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-gray-200">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -685,7 +811,7 @@
                     </div>
                     
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${session.role === 'admin' ? 'bg-blue-500' : 'bg-gray-500'}`}>
-                      {session.username[0].toUpperCase()}
+                      {(session.username || 'U')[0]?.toUpperCase()}
                     </div>
                     
                     <button
@@ -744,7 +870,7 @@
               ) : view === 'dashboard' ? (
                 <Dashboard data={data} />
               ) : (
-                <DataTable title={view} data={data[view]} />
+                <DataTable title={view} data={data[view]} isAdmin={session.role === 'admin'} onSaved={refreshData} />
               )}
             </main>
           </div>
@@ -756,4 +882,3 @@
   </script>
 </body>
 </html>
-        
