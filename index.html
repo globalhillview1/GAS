@@ -6,7 +6,7 @@
   <title>Global Hillview — Society Portal</title>
   <meta name="color-scheme" content="light" />
 
-  <!-- Favicons (files already in your repo root) -->
+  <!-- Favicons -->
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
@@ -21,7 +21,7 @@
     }
   </script>
 
-  <!-- React + Babel (JSX in browser) -->
+  <!-- React + Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -49,35 +49,31 @@
       animation:floaty 16s ease-in-out infinite alternate;
     }
     @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
-    /* Error overlay */
-    #errbox{position:fixed;inset:auto 12px 12px 12px;z-index:99999;background:#111827; color:#fff; border:1px solid #ef4444; padding:10px 12px; border-radius:12px; font:12px/1.4 ui-monospace,monospace; display:none; white-space:pre-wrap}
+    /* Error overlay for quick diagnosis */
+    #errbox{position:fixed;inset:auto 12px 12px 12px;z-index:99999;background:#111827;color:#fff;border:1px solid #ef4444;padding:10px 12px;border-radius:12px;font:12px/1.4 ui-monospace,monospace;display:none;white-space:pre-wrap}
   </style>
 </head>
 <body class="bg-mist text-ink">
   <div id="root"></div>
   <pre id="errbox"></pre>
 
-  <!-- App -->
   <script type="text/babel" data-presets="env,react">
     const { useEffect, useMemo, useState } = React;
 
-    // -------- error overlay (so you never get a blank page again)
-    (function installErrorOverlay(){
+    // Error overlay (so blank screens are visible next time)
+    (function(){
       const box = document.getElementById('errbox');
-      function show(e){
+      const show = (e) => {
         box.style.display='block';
-        box.textContent = '⚠️ Runtime error:\\n\\n' + (e?.message || e?.toString()) +
-          (e?.stack ? ('\\n\\n' + e.stack) : '');
-        console.error(e);
-      }
+        box.textContent = '⚠️ Runtime error:\\n\\n' + (e?.message || e) + (e?.stack ? ('\\n\\n'+e.stack) : '');
+      };
       window.addEventListener('error', ev => show(ev.error || ev.message));
       window.addEventListener('unhandledrejection', ev => show(ev.reason));
     })();
 
-    // -------- config & utils
     const qs = new URLSearchParams(location.search);
     const GAS = (qs.get('gas') || window.ENV_GAS_URL || '').trim();
-    const INR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 });
+    const INR = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2});
 
     async function fetchWithTimeout(url, opts={}, ms=12000){
       const ctl=new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
@@ -100,7 +96,6 @@
     const api = {
       login: (u,p)=> postPlain({op:'login', username:u, password:p}).catch(()=>getJSON('login',{u,p})),
       sessionInfo: (t)=> postPlain({op:'sessionInfo', token:t}),
-
       list: {
         Directory: ()=>getJSON('listDirectory'),
         Notices: ()=>getJSON('listNotices'),
@@ -112,7 +107,6 @@
         ChartOfAccounts: ()=>getJSON('listChartOfAccounts').catch(()=>({rows:[]})),
         Users: ()=>getJSON('listUsers').catch(()=>({rows:[]})),
       },
-
       createRow: (sheet,row)=> postPlain({op:'createRow', sheet, row}),
       upsertRow: (sheet,key,row)=> postPlain({op:'upsertRow', sheet, key, row}),
     };
@@ -130,7 +124,6 @@
       </div>
     );
 
-    // -------- grid with Quick Search
     function EditableGrid({ sheet, rows, isAdmin, onRefresh }){
       const [q, setQ] = useState('');
       const columns = useMemo(()=>{
@@ -139,7 +132,7 @@
       },[rows]);
 
       const keyField = useMemo(()=>{
-        const candidates = {
+        const cands = {
           Issues: ['Tracking ID','Id','ID'],
           Notices: ['Serial Number','ID'],
           Directory: ['Serial','ID'],
@@ -150,7 +143,7 @@
           ChartOfAccounts:['Code','ID'],
           Users:['Username','User','ID'],
         }[sheet] || ['ID','Serial Number','Tracking ID'];
-        return rows[0] ? (candidates.find(c=>c in rows[0]) || candidates[0]) : candidates[0];
+        return rows[0] ? (cands.find(c=>c in rows[0]) || cands[0]) : cands[0];
       },[sheet,rows]);
 
       const filtered = useMemo(()=>{
@@ -182,7 +175,7 @@
         if(!isAdmin) return;
         await api.createRow(sheet, newRow);
         await onRefresh();
-        setNewRow(Object.fromEntries(columns.map(c=>[c,''])));
+        setNewRow(Object.fromEntries(columns.map(c=>[c,'' ])));
         alert('Added');
       }
 
@@ -228,7 +221,6 @@
                 </thead>
                 <tbody>
                   {filtered.map((r,idx)=>{
-                    // map idx from filtered to draft index
                     const ridx = rows.indexOf(r);
                     const rowDraft = draft[ridx] || r;
                     return (
@@ -334,7 +326,7 @@
                 {err && <div className="text-red-600 text-center text-sm mt-2">{err}</div>}
               </div>
             </div>
-            <!-- backend info kept hidden for debugging -->
+            {/* backend info intentionally hidden */}
             <div className="hidden text-white/70 text-xs mt-3">
               Backend: <code className="mono">{GAS||'(not set)'}</code>
             </div>
