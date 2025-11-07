@@ -1,3 +1,12 @@
+<!-- Single-file, no-build index.html for GitHub Pages
+     ✅ React 18 UMD + Babel Standalone (runs directly on GH Pages)
+     ✅ No imports/TypeScript/bundler needed
+     ✅ Connects to your Google Apps Script backend
+     ✅ Robust fetch with timeout+retries, clear errors, and Demo Mode fallback
+     ✅ Admin vs User roles (only Admin can post Notices, raise/edit Tickets, see & add Transactions)
+     ✅ Pages map 1:1 to sheet tabs; tables render ALL columns
+     ✅ Back button on every sub-page; INR ₹; dates in DD-MM-YYYY
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,92 +15,88 @@
   <title>Global Hillview, Sec-11, Sohna, Gurgaon — Society Portal</title>
   <meta name="description" content="Community management web app powered by Google Sheets (GAS backend)." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8F%A1%3C/text%3E%3C/svg%3E" />
+
+  <!-- Tailwind (utility styles) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{colors:{background:'#f9fafb',foreground:'#111827'}}}}</script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { background: '#f9fafb', foreground: '#111827' } } } };
+  </script>
+
+  <!-- React 18 UMD + Babel Standalone for in-browser JSX (no build step) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Configure your Google Apps Script endpoint here (can be overridden by ?gas=... or disabled via ?demo=1) -->
   <script>
-    // GAS endpoint (can be overridden with ?gas=<url>); use ?demo=1 to force demo.
     window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
   </script>
+
   <style>
-    .card{background:#fff;border-radius:1rem;box-shadow:0 1px 2px rgba(0,0,0,.04);border:1px solid #e5e7eb}
-    .btn{padding:.5rem 1rem;border-radius:.75rem;background:#111827;color:#fff}
-    .btn:hover{background:#0b0f1a}
-    .btn-secondary{padding:.5rem .75rem;border-radius:.75rem;background:#f3f4f6;color:#111827}
-    .btn-secondary:hover{background:#e5e7eb}
-    .badge{display:inline-flex;align-items:center;padding:.125rem .5rem;font-size:.75rem;border-radius:.5rem;background:#f3f4f6;color:#374151}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
-    th,td{padding-right:1rem}
+    .card { background:#fff; border-radius:1rem; box-shadow:0 1px 2px rgba(0,0,0,.04); border:1px solid #e5e7eb; }
+    .btn  { padding:.5rem 1rem; border-radius:.75rem; background:#111827; color:#fff }
+    .btn:hover { background:#0b0f1a }
+    .btn-secondary { padding:.5rem .75rem; border-radius:.75rem; background:#f3f4f6; color:#111827 }
+    .btn-secondary:hover { background:#e5e7eb }
+    .badge { display:inline-flex; align-items:center; padding:.125rem .5rem; font-size:.75rem; border-radius:.5rem; background:#f3f4f6; color:#374151 }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace }
+    th,td{ padding-right:1rem }
   </style>
 </head>
 <body class="bg-background text-foreground">
   <div id="root" class="min-h-screen"></div>
 
+  <!-- App Code (JSX compiled in the browser) -->
   <script type="text/babel" data-presets="env,react">
-    const {useEffect,useMemo,useState} = React;
+    const { useEffect, useMemo, useState } = React;
 
+    // =====================
+    // Config & Utilities
+    // =====================
     const SOCIETY_NAME = 'Global Hillview, Sec-11, Sohna, Gurgaon';
     document.title = SOCIETY_NAME + ' — Society Portal';
 
     const params = new URLSearchParams(location.search);
     const URL_OVERRIDE = params.get('gas');
-    const FORCE_DEMO = params.get('demo') === '1' || params.get('offline') === '1';
+    const FORCE_DEMO   = params.get('demo') === '1' || params.get('offline') === '1';
     const BASE_URL = (URL_OVERRIDE || (window.ENV_GAS_URL || '')).trim();
 
     const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-    const toDDMMYYYY = (v)=>{
-      if(!v) return '';
-      const tryParse=(s)=>{ const d=new Date(s); return isNaN(d.getTime())?null:d; };
+    function toDDMMYYYY(v){
+      if (!v) return '';
+      const tryParse = (s)=>{ const d=new Date(s); return isNaN(d.getTime())?null:d };
       let d=null;
-      if(typeof v==='string'){ const cleaned=v.replace(/\./g,'/'); d=tryParse(cleaned)||tryParse(v); }
-      else if(v instanceof Date){ d=v; }
-      if(!d) return String(v);
+      if (typeof v==='string') d = tryParse(v.replace(/\./g,'/')) || tryParse(v);
+      else if (v instanceof Date) d = v;
+      if (!d) return String(v);
       const dd=String(d.getDate()).padStart(2,'0');
       const mm=String(d.getMonth()+1).padStart(2,'0');
       const yyyy=d.getFullYear();
       return `${dd}-${mm}-${yyyy}`;
-    };
+    }
 
     const DEMO = {
       Directory: [
-        { Serial: 1, Name: 'Ayesha Khan',  Flat: 'A-302', Phone: '+91 98765 00001', Email: 'ayesha@example.com' },
-        { Serial: 2, Name: 'Rohan Mehta',  Flat: 'B-1204', Phone: '+91 98765 00002', Email: 'rohan@example.com' },
-        { Serial: 3, Name: 'Sofia Keller', Flat: 'C-803', Phone: '+91 98765 00003', Email: 'sofia@example.com' }
+        { Serial: 1, Name: 'Ayesha Khan',  Flat: 'A-302', Phone: '+91 98765 00001', Email: 'ayesha@example.com', Photo:'' },
+        { Serial: 2, Name: 'Rohan Mehta',  Flat: 'B-1204', Phone: '+91 98765 00002', Email: 'rohan@example.com', Photo:'' },
+        { Serial: 3, Name: 'Sofia Keller', Flat: 'C-803', Phone: '+91 98765 00003', Email: 'sofia@example.com', Photo:'' }
       ],
       Notices: [
         { 'Serial Number': 1, Subject: 'Water shutdown on Friday', Date: '2025-01-15', Notice: 'Maintenance from 10:00–12:00 in Block B.' },
         { 'Serial Number': 2, Subject: 'Diwali Fest – Community Hall', Date: '2025-01-16', Notice: 'Potluck & games this Saturday 18:30.' }
       ],
       Issues: [
-        { 'Tracking ID': 'demo-101', 'Date and Time Raised': '2025-01-16T09:00:00Z', Tower: 'T1', Flat: '1204', Title: 'Lift not working', Category: 'Infrastructure', Description: 'Lift stuck at floor 7.', Status: 'Open' },
-        { 'Tracking ID': 'demo-102', 'Date and Time Raised': '2025-01-16T09:15:00Z', Tower: 'T5', Flat: '505', Title: 'Water leakage', Category: 'Plumbing', Description: 'Leak in kitchen sink.', Status: 'In Progress' }
+        { 'Tracking ID': 'demo-101', 'Date and Time Raised': '2025-01-16T09:00:00Z', Tower: 'T1', Flat: '1204', Issue:'Lift not working', Description: 'Lift stuck at floor 7.', 'Media URL':'', Status: 'Open', 'Redressal Remark':'', 'User ID':'resident', 'Date and Time Resolved':'', 'Time Taken':'', 'Feedback Rating':'' },
       ],
-      Documents: [
-        { 'Serial Number': 1, Subject: 'AGM Minutes', Date: '2025-01-10', Media: 'PDF', Link: '#', Category: 'Governance' }
-      ],
-      Transactions: [
-        { Date: '2025-01-01', Type: 'Credit', Category: 'Maintenance', 'Sub-category': 'Monthly', Amount: 1200 },
-        { Date: '2025-01-01', Type: 'Debit',  Category: 'Clubhouse',  'Sub-category': 'Snacks',  Amount: 250 }
-      ],
-      OpeningBalances: [
-        { Account: 'Maintenance Fund', Amount: 100000 },
-        { Account: 'Corpus Fund', Amount: 250000 }
-      ],
-      ChartOfAccounts: [
-        { Code: '1001', Name: 'Cash', Type: 'Asset' },
-        { Code: '4001', Name: 'Maintenance Income', Type: 'Income' }
-      ],
-      Voters: [
-        { 'Tower No.': 'T1', 'Flat No.': '1204', 'First Owner Name': 'Mrs. SUNITA CHAWLA', 'Second Owner Name': '', 'Membership Card & Share Certificate No': '1', 'Elegible Voter': 'Yes', 'Discrepency':'', 'Voted Earlier':'Yes' }
-      ],
-      Users: [
-        { Username:'admin', Password:'admin', Role:'admin', Active:'Yes' },
-        { Username:'resident', Password:'resident', Role:'user', Active:'Yes' }
-      ]
+      Documents: [ { 'Serial Number': 1, Subject: 'AGM Minutes', Date: '2025-01-10', Media: 'PDF', Link: '#', Category: 'Governance' } ],
+      Transactions: [ { Date: '2025-01-01', Type: 'Credit', Category: 'Maintenance', 'Sub-category': 'Monthly', Amount: 1200 } ],
+      OpeningBalances: [ { Account: 'Maintenance Fund', Amount: 100000 } ],
+      ChartOfAccounts: [ { Code: '1001', Name: 'Cash', Type: 'Asset', Parent:'' } ],
+      Voters: [ { 'Tower No.': 'T1', 'Flat No.': '1204', 'First Owner Name': 'Mrs. SUNITA CHAWLA', 'Second Owner Name': '', 'Membership Card & Share Certificate No': '1', 'Elegible Voter': 'Yes', 'Discrepency':'', 'Voted Earlier':'Yes' } ],
+      Users: [ { Username: 'admin', Password: 'admin', Role: 'admin', Active: 'Yes' }, { Username: 'resident', Password: 'resident', Role: 'user', Active: 'Yes' } ]
     };
 
+    // Fetch with timeout + retries
     async function fetchWithTimeout(url, opts={}, timeoutMs=10000){
       const controller=new AbortController(); const id=setTimeout(()=>controller.abort(), timeoutMs);
       try{ return await fetch(url,{...opts,signal:controller.signal}); } finally{ clearTimeout(id); }
@@ -109,20 +114,16 @@
       throw lastErr;
     }
 
-    const Banner=({kind='info',children})=>{
-      const cls = kind==='error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200';
-      return <div className={`border rounded-xl p-3 ${cls}`}>{children}</div>;
-    };
-    const Section=({children})=><section className="grid gap-4">{children}</section>;
-    const NavItem=({label,active,onClick})=>(<button className={`btn-secondary text-left ${active?'ring-2 ring-gray-300':''}`} onClick={onClick}>{label}</button>);
-    const Stat=({label,value})=>(
-      <div className="card p-5"><div className="text-2xl font-semibold">{value}</div><div className="text-sm text-gray-500">{label}</div></div>
-    );
-    const BackBar=({title,onBack})=>(
-      <div className="flex items-center gap-2"><button className="btn-secondary" onClick={onBack}>← Back</button><div className="text-sm text-gray-500">{title}</div></div>
-    );
+    // UI bits
+    const Banner=({kind='info',children})=>{ const cls = kind==='error'?'bg-red-50 text-red-700 border-red-200':'bg-blue-50 text-blue-700 border-blue-200'; return <div className={`border rounded-xl p-3 ${cls}`}>{children}</div>; };
+    const Section=({children})=> <section className="grid gap-4">{children}</section>;
+    const NavItem=({label,active,onClick})=> (<button className={`btn-secondary text-left ${active?'ring-2 ring-gray-300':''}`} onClick={onClick}>{label}</button>);
+    const Stat=({label,value})=> (<div className="card p-5"><div className="text-2xl font-semibold">{value}</div><div className="text-sm text-gray-500">{label}</div></div>);
+    const BackBar=({title,onBack})=> (<div className="flex items-center gap-2"><button className="btn-secondary" onClick={onBack}>← Back</button><div className="text-sm text-gray-500">{title}</div></div>);
 
-    // --- Pages ---
+    // =====================
+    // Pages
+    // =====================
     function Dashboard({residents,tickets,transactions,notices}){
       const openTickets=tickets.filter(t=>(t.Status||'').toLowerCase()!=='closed').length;
       const totalDue = transactions.filter(t=>(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
@@ -139,7 +140,7 @@
               <div className="font-medium mb-1">Latest notices</div>
               <div className="text-xs text-gray-500 mb-3">From the "Notices" sheet</div>
               <div className="grid gap-2">
-                {notices.slice(0,5).map((n,i)=>(
+                {notices.slice(0,5).map((n,i)=> (
                   <div key={i} className="flex items-center justify-between border rounded-xl p-3">
                     <div>
                       <div className="font-medium">{n['Subject']}</div>
@@ -154,11 +155,11 @@
               <div className="font-medium mb-1">Open issues</div>
               <div className="text-xs text-gray-500 mb-3">From the "Issues" sheet</div>
               <div className="grid gap-2">
-                {tickets.filter(t=>(t.Status||'').toLowerCase()!=='closed').slice(0,5).map((t,i)=>(
+                {tickets.filter(t=>(t.Status||'').toLowerCase()!=='closed').slice(0,5).map((t,i)=> (
                   <div key={i} className="flex items-center justify-between border rounded-xl p-3">
                     <div>
-                      <div className="font-medium">{t['Title']||t['Category']}</div>
-                      <div className="text-xs text-gray-500">{t['Category']} • {t['Flat']||t['Flat No.']||''}</div>
+                      <div className="font-medium">{t['Issue']||t['Title']}</div>
+                      <div className="text-xs text-gray-500">{t['Category']||''} • {t['Flat']||t['Flat No.']||''}</div>
                     </div>
                     <span className="badge">{t['Status']||'Open'}</span>
                   </div>
@@ -170,32 +171,32 @@
       );
     }
 
-    function Notices({notices,onCreate,writable,onBack}){
+    function Notices({notices,onCreate,writable,onBack,isAdmin}){
       const [subject,setSubject]=useState(''); const [notice,setNotice]=useState('');
-      const submit=async()=>{ if(!subject) return; const created=await onCreate({Subject:subject,Notice:notice,Date:new Date().toISOString()}); setSubject(''); setNotice(''); return created; };
+      const submit=async()=>{ if(!subject||!isAdmin) return; const created=await onCreate({Subject:subject,Notice:notice,Date:new Date().toISOString()}); setSubject(''); setNotice(''); return created; };
       const COLS=['Serial Number','Subject','Date','Notice'];
       return (
         <Section>
           <BackBar title="Notices" onBack={onBack} />
-          {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
-          <div className="card p-5">
-            <div className="font-medium">Post notice</div>
-            <div className="text-xs text-gray-500 mb-4">Writes to the "Notices" sheet</div>
-            <div className="grid gap-3">
-              <div><label className="block text-sm mb-1">Subject</label>
-                <input className="w-full border rounded-xl p-2" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g., Water shutdown" /></div>
-              <div><label className="block text-sm mb-1">Notice</label>
-                <textarea className="w-full border rounded-xl p-2" rows="4" value={notice} onChange={e=>setNotice(e.target.value)} placeholder="Details…"></textarea></div>
-              <div><button className="btn" onClick={submit} disabled={!writable}>Publish</button></div>
+          {!isAdmin && <Banner kind="error">Only Admin can post notices.</Banner>}
+          {isAdmin && (
+            <div className="card p-5">
+              <div className="font-medium">Post notice</div>
+              <div className="text-xs text-gray-500 mb-4">Writes to the "Notices" sheet</div>
+              <div className="grid gap-3">
+                <div><label className="block text-sm mb-1">Subject</label><input className="w-full border rounded-xl p-2" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g., Water shutdown" /></div>
+                <div><label className="block text-sm mb-1">Notice</label><textarea className="w-full border rounded-xl p-2" rows="4" value={notice} onChange={e=>setNotice(e.target.value)} placeholder="Details…"></textarea></div>
+                <div><button className="btn" onClick={submit} disabled={!writable}>Publish</button></div>
+              </div>
             </div>
-          </div>
+          )}
           <div className="card p-5">
             <div className="font-medium mb-2">All Notices</div>
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
                 <tbody>
-                  {notices.map((r,i)=>(
+                  {notices.map((r,i)=> (
                     <tr key={i} className="border-t">
                       <td className="py-2 pr-4 whitespace-nowrap">{r['Serial Number']||i+1}</td>
                       <td className="py-2 pr-4">{r['Subject']||''}</td>
@@ -211,46 +212,78 @@
       );
     }
 
-    function Issues({tickets,onCreate,writable,onBack}){
-      const [title,setTitle]=useState(''); const [category,setCategory]=useState('Infrastructure'); const [flat,setFlat]=useState(''); const [description,setDescription]=useState('');
-      const submit=async()=>{ if(!title||!flat) return; await onCreate({Title:title,Category:category,Flat:flat,Description:description,Status:'Open','Date and Time Raised':new Date().toISOString()}); setTitle(''); setFlat(''); setDescription(''); setCategory('Infrastructure'); };
-      const categories=['Infrastructure','Plumbing','Electrical','Housekeeping','Security'];
-      const COLS=['Tracking ID','Date and Time Raised','Tower','Flat','Title','Category','Description','Status'];
-      const read=(row,k)=>row[k]??'';
+    function Issues({tickets,onCreate,writable,onBack,isAdmin}){
+      // FULL columns as requested
+      const COLS=['Tracking ID','Date and Time Raised','Tower','Flat','Issue','Description','Media URL','Status','Redressal Remark','User ID','Date and Time Resolved','Time Taken','Feedback Rating'];
+      const [form,setForm]=useState({Issue:'',Category:'Infrastructure',Flat:'',Tower:'',Description:'',MediaURL:''});
+      const submit=async()=>{
+        if(!isAdmin) return alert('Only Admin can raise tickets.');
+        if(!form.Issue||!form.Flat) return;
+        const payload={
+          'Issue': form.Issue,
+          'Category': form.Category,
+          'Flat': form.Flat,
+          'Tower': form.Tower,
+          'Description': form.Description,
+          'Media URL': form.MediaURL,
+          'Status': 'Open',
+          'User ID': 'admin',
+          'Date and Time Raised': new Date().toISOString()
+        };
+        await onCreate(payload);
+        setForm({Issue:'',Category:'Infrastructure',Flat:'',Tower:'',Description:'',MediaURL:''});
+      };
       return (
         <Section>
           <BackBar title="Tickets (Issues)" onBack={onBack} />
-          {!writable && <Banner kind="error">Demo Mode: write actions are disabled because the backend could not be reached.</Banner>}
-          <div className="card p-5">
-            <div className="font-medium">Raise an issue</div>
-            <div className="text-xs text-gray-500 mb-4">Writes to the "Issues" sheet</div>
-            <div className="grid gap-3">
-              <div><label className="block text-sm mb-1">Title</label><input className="w-full border rounded-xl p-2" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Short summary" /></div>
-              <div><label className="block text-sm mb-1">Category</label>
-                <select className="w-64 border rounded-xl p-2" value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-              <div className="grid md:grid-cols-2 gap-3">
-                <div><label className="block text-sm mb-1">Flat</label><input className="w-full border rounded-xl p-2" value={flat} onChange={e=>setFlat(e.target.value)} placeholder="e.g., A-302" /></div>
-                <div><label className="block text-sm mb-1">Details</label><input className="w-full border rounded-xl p-2" value={description} onChange={e=>setDescription(e.target.value)} placeholder="Optional" /></div>
+          {!isAdmin && <Banner kind="error">Only Admin can raise or edit tickets.</Banner>}
+          {isAdmin && (
+            <div className="card p-5">
+              <div className="font-medium">Raise an issue</div>
+              <div className="text-xs text-gray-500 mb-4">Writes to the "Issues" sheet</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm mb-1">Issue</label>
+                  <input className="w-full border rounded-xl p-2" value={form.Issue} onChange={e=>setForm({...form,Issue:e.target.value})} placeholder="Short summary" />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Category</label>
+                  <select className="w-full border rounded-xl p-2" value={form.Category} onChange={e=>setForm({...form,Category:e.target.value})}>
+                    {['Infrastructure','Plumbing','Electrical','Housekeeping','Security'].map(c=> <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Tower</label>
+                  <input className="w-full border rounded-xl p-2" value={form.Tower} onChange={e=>setForm({...form,Tower:e.target.value})} placeholder="e.g., T1" />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Flat</label>
+                  <input className="w-full border rounded-xl p-2" value={form.Flat} onChange={e=>setForm({...form,Flat:e.target.value})} placeholder="e.g., 1204" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm mb-1">Description</label>
+                  <input className="w-full border rounded-xl p-2" value={form.Description} onChange={e=>setForm({...form,Description:e.target.value})} placeholder="Optional" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm mb-1">Media URL</label>
+                  <input className="w-full border rounded-xl p-2" value={form.MediaURL} onChange={e=>setForm({...form,MediaURL:e.target.value})} placeholder="Paste image/file URL (optional)" />
+                </div>
+                <div className="md:col-span-2"><button className="btn" onClick={submit} disabled={!writable}>Submit</button></div>
               </div>
-              <div><button className="btn" onClick={submit} disabled={!writable}>Submit</button></div>
             </div>
-          </div>
+          )}
           <div className="card p-5 mt-3">
             <div className="font-medium mb-2">All Issues</div>
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
                 <tbody>
-                  {tickets.map((row,i)=>(
+                  {tickets.map((row,i)=> (
                     <tr key={i} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">{read(row,'Tracking ID')||i+1}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{toDDMMYYYY(read(row,'Date and Time Raised'))}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{read(row,'Tower')}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{read(row,'Flat')||read(row,'Flat No.')}</td>
-                      <td className="py-2 pr-4">{read(row,'Title')}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{read(row,'Category')}</td>
-                      <td className="py-2 pr-4">{read(row,'Description')}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{read(row,'Status')}</td>
+                      {COLS.map(h=>{
+                        const v=row[h] || row[h.replace('Media URL','MediaURL')] || '';
+                        return <td key={h} className="py-2 pr-4 whitespace-nowrap">{h.includes('Date')?toDDMMYYYY(v):String(v)}</td>
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -261,25 +294,49 @@
       );
     }
 
-    function Directory({residents,onBack}){
-      const COLS=['Serial','Name','Flat','Phone','Email'];
+    function Directory({rows,onBack,isAdmin,onCreate}){
+      const COLS=['Serial','Name','Flat','Phone','Email','Photo'];
+      const [photoData,setPhotoData]=useState('');
+      const [form,setForm]=useState({Name:'',Flat:'',Phone:'',Email:''});
+      const onFile=(e)=>{
+        const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setPhotoData(r.result); r.readAsDataURL(f);
+      };
+      const submit=async()=>{
+        if(!isAdmin) return alert('Only Admin can add to Directory.');
+        const payload={...form, Photo: photoData};
+        await onCreate(payload);
+        setForm({Name:'',Flat:'',Phone:'',Email:''}); setPhotoData('');
+      };
       return (
         <Section>
           <BackBar title="Directory" onBack={onBack} />
+          {isAdmin && (
+            <div className="card p-5">
+              <div className="font-medium">Add resident</div>
+              <div className="text-xs text-gray-500 mb-4">Writes to the "Directory" sheet</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div><label className="block text-sm mb-1">Name</label><input className="w-full border rounded-xl p-2" value={form.Name} onChange={e=>setForm({...form,Name:e.target.value})} /></div>
+                <div><label className="block text-sm mb-1">Flat</label><input className="w-full border rounded-xl p-2" value={form.Flat} onChange={e=>setForm({...form,Flat:e.target.value})} placeholder="e.g., T1-1204"/></div>
+                <div><label className="block text-sm mb-1">Phone</label><input className="w-full border rounded-xl p-2" value={form.Phone} onChange={e=>setForm({...form,Phone:e.target.value})} /></div>
+                <div><label className="block text-sm mb-1">Email</label><input className="w-full border rounded-xl p-2" value={form.Email} onChange={e=>setForm({...form,Email:e.target.value})} /></div>
+                <div className="md:col-span-2"><label className="block text-sm mb-1">Photo</label><input type="file" accept="image/*" onChange={onFile} /><div className="mt-2">{photoData && <img src={photoData} alt="preview" className="h-16 rounded"/>}</div></div>
+                <div className="md:col-span-2"><button className="btn" onClick={submit}>Save to Directory</button></div>
+              </div>
+            </div>
+          )}
           <div className="card p-5">
-            <div className="font-medium">Residents directory</div>
-            <div className="text-xs text-gray-500 mb-4">From the "Directory" sheet</div>
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
                 <tbody>
-                  {residents.map((r,i)=>(
-                    <tr key={r.id||i} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.id||i+1}</td>
-                      <td className="py-2 pr-4">{r.name}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.flat}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.phone}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{r.email}</td>
+                  {rows.map((r,i)=> (
+                    <tr key={i} className="border-t">
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Serial||i+1}</td>
+                      <td className="py-2 pr-4">{r.Name}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Flat}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Phone}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Email}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{r.Photo ? <a className="underline" href={r.Photo} target="_blank" rel="noreferrer">Open</a> : ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -290,14 +347,22 @@
       );
     }
 
-    function Payments({transactions,canView,onBack}){
+    function Payments({transactions,onBack,isAdmin,onCreate}){
       const totals=useMemo(()=>{
         const paid=transactions.filter(t=>(t.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
         const due =transactions.filter(t=>(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
         return {paid,due};
       },[transactions]);
-      if(!canView) return (<Section><BackBar title="Payments (Transactions)" onBack={onBack} /><Banner kind="error">Access restricted. Payments are visible to Admin only.</Banner></Section>);
       const COLS=['Date','Type','Category','Sub-category','Amount'];
+
+      const [openForm,setOpenForm]=useState(false);
+      const [tx,setTx]=useState({Date:'',Type:'Credit',Category:'',Sub:'',Amount:''});
+      const submit=async()=>{
+        if(!isAdmin) return alert('Only Admin can add transactions.');
+        const payload={'Date':tx.Date||new Date().toISOString(),'Type':tx.Type,'Category':tx.Category,'Sub-category':tx.Sub,'Amount':Number(tx.Amount||0)};
+        await onCreate(payload); setOpenForm(false); setTx({Date:'',Type:'Credit',Category:'',Sub:'',Amount:''});
+      };
+
       return (
         <Section>
           <BackBar title="Payments (Transactions)" onBack={onBack} />
@@ -305,13 +370,27 @@
             <Stat label="Collected (credits)" value={INR.format(totals.paid)} />
             <Stat label="Debits" value={INR.format(totals.due)} />
           </div>
+          {isAdmin && <div><button className="btn mt-2" onClick={()=>setOpenForm(v=>!v)}>➕ Add Transaction</button></div>}
+          {isAdmin && openForm && (
+            <div className="card p-5 mt-2">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div><label className="block text-sm mb-1">Date</label><input className="w-full border rounded-xl p-2" type="date" value={tx.Date} onChange={e=>setTx({...tx,Date:e.target.value})} /></div>
+                <div><label className="block text-sm mb-1">Type</label><select className="w-full border rounded-xl p-2" value={tx.Type} onChange={e=>setTx({...tx,Type:e.target.value})}><option>Credit</option><option>Debit</option></select></div>
+                <div><label className="block text-sm mb-1">Category</label><input className="w-full border rounded-xl p-2" value={tx.Category} onChange={e=>setTx({...tx,Category:e.target.value})} /></div>
+                <div><label className="block text-sm mb-1">Sub-category</label><input className="w-full border rounded-xl p-2" value={tx.Sub} onChange={e=>setTx({...tx,Sub:e.target.value})} /></div>
+                <div className="md:col-span-2"><label className="block text-sm mb-1">Amount</label><input className="w-full border rounded-xl p-2" type="number" value={tx.Amount} onChange={e=>setTx({...tx,Amount:e.target.value})} /></div>
+                <div className="md:col-span-2"><button className="btn" onClick={submit}>Save</button></div>
+              </div>
+            </div>
+          )}
+
           <div className="card p-5 mt-2">
             <div className="font-medium mb-2">Transactions</div>
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
                 <tbody>
-                  {transactions.map((p,i)=>(
+                  {transactions.map((p,i)=> (
                     <tr key={i} className="border-t">
                       <td className="py-2 pr-4 whitespace-nowrap">{toDDMMYYYY(p['Date'])}</td>
                       <td className="py-2 pr-4 whitespace-nowrap">{p['Type']}</td>
@@ -330,7 +409,7 @@
 
     function OpeningBalances({rows,onBack}){
       const COLS=['Account','Amount'];
-      const read=(r,k)=> r[k] ?? (k==='Account'?(r['Account Name']||r['Name']):(k==='Amount'?(r['Opening Balance']||r['Amount']):''));
+      const read=(r,k)=> r[k] ?? (k==='Account' ? (r['Account Name']||r['Name']) : (k==='Amount' ? (r['Opening Balance']||r['Amount']) : ''));
       return (
         <Section>
           <BackBar title="Opening Balances" onBack={onBack} />
@@ -338,14 +417,7 @@
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
-                <tbody>
-                  {rows.map((r,i)=>(
-                    <tr key={i} className="border-t">
-                      <td className="py-2 pr-4">{read(r,'Account')}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{INR.format(Number(read(r,'Amount')||0))}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{rows.map((r,i)=> (<tr key={i} className="border-t"><td className="py-2 pr-4">{read(r,'Account')}</td><td className="py-2 pr-4 whitespace-nowrap">{INR.format(Number(read(r,'Amount')||0))}</td></tr>))}</tbody>
               </table>
             </div>
           </div>
@@ -355,7 +427,7 @@
 
     function ChartOfAccounts({rows,onBack}){
       const COLS=['Code','Name','Type','Parent'];
-      const read=(r,k)=> r[k] ?? ({Code:r['Account Code'],Name:r['Account Name'],Type:r['Account Type'],Parent:r['Parent']}[k]);
+      const read=(r,k)=> r[k] ?? ({'Code':r['Account Code'],'Name':r['Account Name'],'Type':r['Account Type'],'Parent':r['Parent']}[k]);
       return (
         <Section>
           <BackBar title="Chart of Accounts" onBack={onBack} />
@@ -363,13 +435,7 @@
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
-                <tbody>
-                  {rows.map((r,i)=>(
-                    <tr key={i} className="border-t">
-                      {COLS.map(h=> <td key={h} className="py-2 pr-4 whitespace-nowrap">{read(r,h)||''}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{rows.map((r,i)=> (<tr key={i} className="border-t">{COLS.map(h=> <td key={h} className="py-2 pr-4 whitespace-nowrap">{read(r,h)||''}</td>)}</tr>))}</tbody>
               </table>
             </div>
           </div>
@@ -386,17 +452,7 @@
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
-                <tbody>
-                  {documents.map((d,i)=>(
-                    <tr key={i} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">{d['Serial Number']||i+1}</td>
-                      <td className="py-2 pr-4">{d['Subject']||''}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{toDDMMYYYY(d['Date'])}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{d['Category']||''}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{d['Link']?<a className="underline" target="_blank" rel="noreferrer" href={d['Link']}>Open</a>:''}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{documents.map((d,i)=> (<tr key={i} className="border-t"><td className="py-2 pr-4 whitespace-nowrap">{d['Serial Number']||i+1}</td><td className="py-2 pr-4">{d['Subject']||''}</td><td className="py-2 pr-4 whitespace-nowrap">{toDDMMYYYY(d['Date'])}</td><td className="py-2 pr-4 whitespace-nowrap">{d['Category']||''}</td><td className="py-2 pr-4 whitespace-nowrap">{d['Link']?<a className="underline" target="_blank" rel="noreferrer" href={d['Link']}>Open</a>:''}</td></tr>))}</tbody>
               </table>
             </div>
           </div>
@@ -406,20 +462,7 @@
 
     function Voters({voters,onBack}){
       const COLS=['Tower No.','Flat No.','First Owner Name','Second Owner Name','Membership Card & Share Certificate No','Elegible Voter','Discrepency','Voted Earlier'];
-      const read=(row,key)=>{
-        const aliases={
-          'Tower No.':['Tower No.','Tower','Tower No'],
-          'Flat No.':['Flat No.','Flat','Flat No'],
-          'First Owner Name':['First Owner Name','Owner 1','First Name'],
-          'Second Owner Name':['Second Owner Name','Owner 2','Second Name'],
-          'Membership Card & Share Certificate No':['Membership Card & Share Certificate No','Membership Card No','Share Certificate No'],
-          'Elegible Voter':['Elegible Voter','Eligible Voter'],
-          'Discrepency':['Discrepency','Discrepancy'],
-          'Voted Earlier':['Voted Earlier','VotedPreviously'],
-        };
-        const keys=aliases[key]||[key]; for(const k of keys){ if(Object.prototype.hasOwnProperty.call(row,k)) return row[k]; }
-        return '';
-      };
+      const read=(row,key)=>{ const aliases={ 'Tower No.':['Tower No.','Tower'], 'Flat No.':['Flat No.','Flat'], 'First Owner Name':['First Owner Name','Owner 1'], 'Second Owner Name':['Second Owner Name','Owner 2'], 'Membership Card & Share Certificate No':['Membership Card & Share Certificate No','Membership Card No','Share Certificate No'], 'Elegible Voter':['Elegible Voter','Eligible Voter'], 'Discrepency':['Discrepency','Discrepancy'], 'Voted Earlier':['Voted Earlier','VotedPreviously'] }; const keys=aliases[key]||[key]; for(const k of keys){ if(Object.prototype.hasOwnProperty.call(row,k)) return row[k]; } return '' };
       return (
         <Section>
           <BackBar title="Voters" onBack={onBack} />
@@ -429,13 +472,7 @@
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
                 <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
-                <tbody>
-                  {voters.map((row,i)=>(
-                    <tr key={i} className="border-t">
-                      {COLS.map(h=> <td key={h} className="py-2 pr-4 whitespace-nowrap">{String(read(row,h)??'')}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{voters.map((row,i)=> (<tr key={i} className="border-t">{COLS.map(h=> <td key={h} className="py-2 pr-4 whitespace-nowrap">{String(read(row,h)??'')}</td>)}</tr>))}</tbody>
               </table>
             </div>
           </div>
@@ -443,37 +480,47 @@
       );
     }
 
-    // --- Diagnostics & App ---
-    function runTests(){
-      const results=[]; const t=(n,f)=>{try{f();results.push({name:n,pass:true});}catch(e){results.push({name:n,pass:false,err:String(e)})}};
-      t('payments totals',()=>{const paid=DEMO.Transactions.filter(x=>x.Type==='Credit').reduce((a,b)=>a+b.Amount,0); const due=DEMO.Transactions.filter(x=>x.Type==='Debit').reduce((a,b)=>a+b.Amount,0); if(paid!==1200) throw new Error('paid mismatch'); if(due!==250) throw new Error('due mismatch');});
-      t('directory mapping',()=>{const r=DEMO.Directory[0]; const id=r.Serial||`${r.Name}-${r.Flat}`; if(!id) throw new Error('id missing');});
-      t('notices exist',()=>{if(!Array.isArray(DEMO.Notices)||DEMO.Notices.length<2) throw new Error('notices missing');});
-      return results;
-    }
-    function Diagnostics({baseUrl,lastError,mode,rerun,tests}){
-      const pass=tests.filter(x=>x.pass).length, fail=tests.length-pass;
+    function Admin({users,session,onLogin,onLogout,onBack}){
+      const [u,setU]=useState(''); const [p,setP]=useState('');
       return (
-        <div className="card p-4 text-sm">
-          <div className="font-medium mb-1">Diagnostics</div>
-          <div>Society: <span className="mono">{SOCIETY_NAME}</span></div>
-          <div>Mode: <span className="mono">{mode}</span></div>
-          <div>BASE_URL: <code className="break-all mono">{baseUrl||'(empty)'}</code></div>
-          {lastError && <div className="text-red-600 mt-1">Last error: {String(lastError)}</div>}
-          <div className="text-xs text-gray-500 mt-2">Tests — pass: {pass}, fail: {fail}</div>
-          {fail>0 && <ul className="list-disc ml-5 mt-1 text-red-600">{tests.filter(x=>!x.pass).map((x,i)=>(<li key={i}>{x.name}: {x.err}</li>))}</ul>}
-          <div className="text-xs text-gray-500 mt-1">Tip: override with <code>?gas=&lt;url&gt;</code> or force demo with <code>?demo=1</code></div>
-          <div className="mt-2 flex gap-2"><button className="btn" onClick={rerun}>Run connectivity tests</button><a className="btn-secondary" href="?demo=1">Open in Demo Mode</a></div>
-        </div>
+        <Section>
+          <BackBar title="Admin" onBack={onBack} />
+          {session.role!=='admin' ? (
+            <div className="card p-5 max-w-md">
+              <div className="font-medium mb-3">Admin login</div>
+              <div className="grid gap-3">
+                <div><label className="block text-sm mb-1">Username</label><input className="w-full border rounded-xl p-2" value={u} onChange={e=>setU(e.target.value)} /></div>
+                <div><label className="block text-sm mb-1">Password</label><input type="password" className="w-full border rounded-xl p-2" value={p} onChange={e=>setP(e.target.value)} /></div>
+                <div><button className="btn" onClick={()=>onLogin(u,p)}>Login</button></div>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Logged in as <span className="mono">{session.username}</span> (Admin)</div>
+                <button className="btn-secondary" onClick={onLogout}>Logout</button>
+              </div>
+              <div className="text-sm text-gray-500 mt-2">Use side navigation to manage data. Only Admin can post notices, raise/edit tickets, and view/add transactions.</div>
+            </div>
+          )}
+        </Section>
       );
     }
 
+    // Diagnostics
+    function runTests(){ const results=[]; const t=(n,f)=>{try{f();results.push({name:n,pass:true});}catch(e){results.push({name:n,pass:false,err:String(e)})}}; t('currency format',()=>{ if(!INR.format(100).includes('₹')) throw new Error('INR not applied') }); t('date format',()=>{ if(toDDMMYYYY('2025-01-05')!=='05-01-2025') throw new Error('date fmt') }); return results; }
+    function Diagnostics({baseUrl,lastError,mode,rerun,tests}){ const pass=tests.filter(x=>x.pass).length, fail=tests.length-pass; return (<div className="card p-4 text-sm"><div className="font-medium mb-1">Diagnostics</div><div>Society: <span className="mono">{SOCIETY_NAME}</span></div><div>Mode: <span className="mono">{mode}</span></div><div>BASE_URL: <code className="break-all mono">{baseUrl||'(empty)'}</code></div>{lastError && <div className="text-red-600 mt-1">Last error: {String(lastError)}</div>}<div className="text-xs text-gray-500 mt-2">Tests — pass: {pass}, fail: {fail}</div>{fail>0 && <ul className="list-disc ml-5 mt-1 text-red-600">{tests.filter(x=>!x.pass).map((x,i)=>(<li key={i}>{x.name}: {x.err}</li>))}</ul>}<div className="text-xs text-gray-500 mt-1">Tip: override with <code>?gas=&lt;url&gt;</code> or force demo with <code>?demo=1</code></div><div className="mt-2 flex gap-2"><button className="btn" onClick={rerun}>Run connectivity tests</button><a className="btn-secondary" href="?demo=1">Open in Demo Mode</a></div></div>); }
+
+    // =====================
+    // App
+    // =====================
     function App(){
       const [view,setView]=useState('dashboard');
       const [loading,setLoading]=useState(false);
       const [lastError,setLastError]=useState('');
       const [mode,setMode]=useState(FORCE_DEMO?'DEMO':'LIVE');
       const [tests,setTests]=useState(runTests());
+
       const [directory,setDirectory]=useState([]), [notices,setNotices]=useState([]), [tickets,setTickets]=useState([]), [transactions,setTransactions]=useState([]), [documents,setDocuments]=useState([]), [voters,setVoters]=useState([]), [openingBalances,setOpeningBalances]=useState([]), [chart,setChart]=useState([]), [users,setUsers]=useState([]);
       const [session,setSession]=useState({username:'guest',role:(new URLSearchParams(location.search).get('role'))||'user'});
       const [search,setSearch]=useState('');
@@ -499,18 +546,14 @@
       function useDemo(){ setDirectory(DEMO.Directory); setNotices(DEMO.Notices); setTickets(DEMO.Issues); setTransactions(DEMO.Transactions); setDocuments(DEMO.Documents); setVoters(DEMO.Voters); setOpeningBalances(DEMO.OpeningBalances); setChart(DEMO.ChartOfAccounts); setUsers(DEMO.Users); setMode('DEMO'); }
       useEffect(()=>{ loadAll(); },[]);
 
-      function handleLogin(username,password){
-        const pool=users&&users.length?users:DEMO.Users;
-        const m=pool.find(u=>(u.Username||'').toLowerCase()===String(username).toLowerCase() && String(u.Password||'')===String(password) && String(u.Active||'Yes').toLowerCase().startsWith('y'));
-        if(m){ setSession({username:m.Username||username,role:(m.Role||'user').toLowerCase()}); alert('Logged in as '+(m.Username||username)); } else { alert('Invalid credentials'); }
-      }
+      function handleLogin(username,password){ const pool=users&&users.length?users:DEMO.Users; const m=pool.find(u=>(u.Username||'').toLowerCase()===String(username).toLowerCase() && String(u.Password||'')===String(password) && String(u.Active||'Yes').toLowerCase().startsWith('y')); if(m){ setSession({username:m.Username||username,role:(m.Role||'user').toLowerCase()}); alert('Logged in as '+(m.Username||username)); } else { alert('Invalid credentials'); } }
       function handleLogout(){ setSession({username:'guest',role:'user'}); }
 
-      const residents = useMemo(()=> directory.map(r=>({ id:r.Serial??r.id??`${r.Name}-${r.Flat}`, name:r.Name??r['First Owner Name']??'', flat:r.Flat??`${r['Tower No.']||''}-${r['Flat No.']||''}`, phone:r.Phone||r.Mobile||'', email:r.Email||'' })),[directory]);
-      const filteredResidents = useMemo(()=>{ const q=search.toLowerCase(); return residents.filter(r=>[r.name,r.flat,r.phone,r.email].some(v=>String(v||'').toLowerCase().includes(q))); },[search,residents]);
+      const residents = useMemo(()=> directory.map(r=>({ id:r.Serial??r.id??`${r.Name}-${r.Flat}`, Name:r.Name??r['First Owner Name']??'', Flat:r.Flat??`${r['Tower No.']||''}-${r['Flat No.']||''}`, Phone:r.Phone||r.Mobile||'', Email:r.Email||'', Photo:r.Photo||'' })),[directory]);
+      const filteredResidents = useMemo(()=>{ const q=search.toLowerCase(); return residents.filter(r=>[r.Name,r.Flat,r.Phone,r.Email].some(v=>String(v||'').toLowerCase().includes(q))); },[search,residents]);
 
+      const isAdmin = session.role==='admin';
       const writable = mode==='LIVE';
-      const canSeePayments = session.role==='admin';
 
       return (
         <div className="max-w-7xl mx-auto p-4">
@@ -526,7 +569,7 @@
 
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             <aside className="grid gap-2">
-              {['dashboard','notices','tickets','directory','payments','openingBalances','chartOfAccounts','documents','voters','admin'].map(tab=>(
+              {['dashboard','notices','tickets','directory','payments','openingBalances','chartOfAccounts','documents','voters','admin'].map(tab=> (
                 <NavItem key={tab} label={tab.charAt(0).toUpperCase()+tab.slice(1)} active={view===tab} onClick={()=>setView(tab)} />
               ))}
               <Diagnostics baseUrl={BASE_URL} lastError={lastError} mode={mode} rerun={loadAll} tests={tests} />
@@ -536,10 +579,10 @@
               {loading && <div className="text-sm text-gray-500">Loading from Google Sheets…</div>}
               {mode==='DEMO' && <Banner kind="error">Failed to reach backend. Running in Demo Mode so you can still try the app.</Banner>}
               {view==='dashboard' && <Dashboard residents={residents} tickets={tickets} transactions={transactions} notices={notices} />}
-              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){alert('Demo Mode: write disabled'); return n;} const created=await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} onBack={()=>setView('dashboard')} />}
-              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){alert('Demo Mode: write disabled'); return t;} const created=await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} onBack={()=>setView('dashboard')} />}
-              {view==='directory' && <Directory residents={filteredResidents} onBack={()=>setView('dashboard')} />}
-              {view==='payments' && <Payments transactions={transactions} canView={canSeePayments} onBack={()=>setView('dashboard')} />}
+              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){alert('Demo Mode: write disabled'); return n;} const created=await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
+              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){alert('Demo Mode: write disabled'); return t;} const created=await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
+              {view==='directory' && <Directory rows={directory} onCreate={async r=>{ if(!writable){alert('Demo Mode: write disabled'); return r;} const created=await api('createDirectory','POST',r); setDirectory(p=>[...p, created]); return created; }} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
+              {view==='payments' && <Payments transactions={transactions} onCreate={async p=>{ if(!writable){alert('Demo Mode: write disabled'); return p;} const created=await api('createTransaction','POST',p); setTransactions(prev=>[...prev, created]); return created; }} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
               {view==='openingBalances' && <OpeningBalances rows={openingBalances} onBack={()=>setView('dashboard')} />}
               {view==='chartOfAccounts' && <ChartOfAccounts rows={chart} onBack={()=>setView('dashboard')} />}
               {view==='documents' && <Documents documents={documents} onBack={()=>setView('dashboard')} />}
