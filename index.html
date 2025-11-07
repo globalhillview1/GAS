@@ -118,14 +118,14 @@
         catch(e){ setErr(String(e)); } finally{ setBusy(false); }
       }
       return (
-        <div className="min-h-screen grid place-items-center" style="background:#0b1020">
+        <div className="min-h-screen grid place-items-center" style={{ background: '#0b1020' }}>
           <div className="card p-6 w-full max-w-md">
             <div className="flex items-center gap-3 mb-3"><img src="assets/favicon.ico" className="w-8 h-8"/><div className="font-semibold">Global Hillview — Sign in</div></div>
             <div className="grid gap-3">
               <div><label className="text-sm">Username</label><input className="w-full mt-1" value={u} onChange={e=>setU(e.target.value)} /></div>
               <div><label className="text-sm">Password</label><input className="w-full mt-1" type="password" value={p} onChange={e=>setP(e.target.value)} /></div>
               <Btn onClick={go} className="flex gap-2 items-center justify-center">{busy && <span className="spin"></span>}<span>Sign in</span></Btn>
-              {err && <div style="color:#ff8a8a" className="text-sm">{err}</div>}
+              {err && <div style={{ color: '#ff8a8a' }} className="text-sm">{err}</div>}
               <div className="text-xs text-[#9aa6d1]">Backend: <code>{GAS||'(unset)'}</code> • tip: <code>?gas=&lt;url&gt;</code></div>
             </div>
           </div>
