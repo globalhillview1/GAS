@@ -2,341 +2,253 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Global Hillview — Society Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="light dark" />
+  <title>Global Hillview — Society Portal</title>
+  <meta name="color-scheme" content="light" />
   <link rel="icon" href="assets/favicon.ico" />
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: { extend: { colors: { ink:"#0f172a", mist:"#0b1020", card:"#121833", border:"#233160" } } }
-    };
+      theme: { extend: { colors: { ink:"#0f172a", mist:"#f8fafc", card:"#fff", border:"#e5e7eb" } } }
+    }
   </script>
 
-  <!-- React 18 UMD + Babel -->
+  <!-- React + Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- GAS URL (override with ?gas=<url>) -->
+  <!-- GAS endpoint (override with ?gas=<url>) -->
   <script>
     window.ENV_GAS_URL = "https://script.google.com/macros/s/AKfycbxzoyXJNkqqxNZprAfvAzpsszrkAKXiposW1WjbqHO-4Wu_5fJk7hJ6HCqihF76TKED/exec";
   </script>
 
   <style>
-    body{ background:#0b1020; color:#eaf0ff }
-    .card { background:#0f1734; border:1px solid #233160; border-radius:16px }
-    .btn { background:#1c2752; color:#eaf0ff; border-radius:10px; padding:.55rem .9rem }
-    .btn:hover{ background:#223067 }
-    .btn2 { background:#121833; color:#cfd7ff; border:1px solid #263057; border-radius:10px; padding:.5rem .85rem }
-    .spin{ border:2px solid #fff; border-top-color:transparent; width:14px; height:14px; border-radius:50%; animation:s .9s linear infinite }
-    @keyframes s { to { transform:rotate(360deg) } }
-    header{ position:sticky; top:0; z-index:40; height:64px; backdrop-filter: blur(8px); background:#0b1020cc; border-bottom:1px solid #1f2748 }
-    .chip{ padding:.55rem .75rem; background:#121833; border:1px solid #263057; border-radius:10px; color:#aab3d0 }
-    .kpi{ border-radius:14px; padding:16px; text-align:center; background:linear-gradient(135deg,#5b79ff 0%,#7a4de0 100%); color:white; box-shadow:0 6px 20px rgba(20,30,70,.25) }
-    .kpi .k{ font-size:15px; font-weight:700; opacity:.95 }
-    .kpi .v{ font-size:28px; font-weight:800; margin-top:6px }
-    .tablewrap{ overflow:auto; border:1px solid #263057; border-radius:14px; background:#121833 }
-    table{ width:100%; border-collapse:collapse; font-size:14px; min-width:1000px }
-    thead th{ position:sticky; top:0; background:#161e3c; color:#cfd7ff; text-align:left; padding:12px 10px; border-bottom:1px solid #263057; user-select:none }
-    tbody td{ padding:10px; border-bottom:1px dashed #223058; vertical-align:top }
-    tbody tr:hover{ background:#10183a }
-    input, select, textarea{ background:#0f1530; color:#fff; border:1px solid #2a3770; border-radius:8px; padding:6px 8px; outline: none }
-    .toolbar > *{ margin-right:8px }
-    .toolbar input[type="search"]{ width:260px }
-    .titlebar{ display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0 2px }
-    .titlebar img{ width:28px; height:28px; border-radius:8px }
-    .titlebar h1{ margin:0; font-size:22px; font-weight:800 }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
+    .btn  { background:#0f172a; color:#fff; border-radius:12px; padding:.6rem 1rem; }
+    .btn-ghost { background:#f3f4f6; color:#0f172a; border-radius:12px; padding:.5rem .9rem; }
+    .badge{ font-size:.75rem;background:#f3f4f6;border-radius:.5rem;padding:.15rem .5rem }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace }
+    .spin { border:2px solid #11182740; border-top-color:#111827; width:14px;height:14px;border-radius:50%; animation:s .9s linear infinite }
+    @keyframes s{to{transform:rotate(360deg)}}
+    .login-bg{
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,.35), transparent 40%),
+        radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.35), transparent 45%),
+        radial-gradient(1000px 700px at 50% 90%, rgba(74,222,128,.35), transparent 40%),
+        #0b1220;
+      animation:floaty 16s ease-in-out infinite alternate;
+    }
+    @keyframes floaty{0%{background-position:0 0,100% 0,50% 100%}100%{background-position:0 -40px,100% -30px,50% calc(100% + 40px)}}
   </style>
 </head>
-<body>
+<body class="bg-mist text-ink">
   <div id="root"></div>
 
   <script type="text/babel" data-presets="env,react">
-    const {useState,useEffect,useMemo} = React;
+    const { useEffect, useMemo, useState } = React;
 
-    // ---------- Config ----------
+    // -------- config
     const qs = new URLSearchParams(location.search);
-    const GAS = (qs.get("gas") || window.ENV_GAS_URL || "").trim();
-    const INR = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"});
+    const GAS = (qs.get('gas') || window.ENV_GAS_URL || '').trim();
+    const INR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 });
 
-    const DEMO = {
-      Directory:[{Serial:1,Name:'Demo',Flat:'T1-101',Phone:'',Email:''}],
-      Notices:[{'Serial Number':1,Subject:'Welcome',Date:'2025-01-10',Notice:'Demo'}],
-      Issues:[{'Tracking ID':'demo-1','Date and Time Raised':'2025-01-10T10:00:00Z',Tower:'T1',Flat:'101',Issue:'Demo',Status:'Open','Feedback Rating':5}],
-      Transactions:[{Date:'2025-01-01',Type:'Credit',Category:'Maintenance','Sub-category':'Monthly',Amount:1200},
-                    {Date:'2025-01-03',Type:'Debit',Category:'Repairs','Sub-category':'Lift',Amount:300}],
-      Documents:[{'Serial Number':1,Subject:'AGM',Date:'2025-01-01',Category:'Gov',Link:'#'}],
-      Voters:[{'Tower No.':'T1','Flat No.':'101','First Owner Name':'Demo','Second Owner Name':'','Membership Card & Share Certificate No':'','Eligible Voter':'Yes','Discrepency':'','Voted Earlier':'No','Remark':''}],
-      OpeningBalances:[{Account:'Maintenance Fund',Amount:100000}],
-      ChartOfAccounts:[{Code:'1001',Name:'Cash',Type:'Asset',Parent:''}],
-    };
-
-    // ---------- HTTP ----------
-    async function fetchWithTimeout(url,opts={},ms=12000){
-      const ctl=new AbortController(); const id=setTimeout(()=>ctl.abort('timeout'),ms);
+    // -------- util
+    async function fetchWithTimeout(url, opts={}, ms=12000){
+      const ctl=new AbortController(); const id=setTimeout(()=>ctl.abort(), ms);
       try{ return await fetch(url,{...opts,signal:ctl.signal}); } finally{ clearTimeout(id); }
     }
-    async function getJSON(action){
-      const u=new URL(GAS); u.searchParams.set('action',action);
-      const r=await fetchWithTimeout(u); if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText)); return r.json();
+    async function getJSON(action, extra={}){
+      const u=new URL(GAS); u.searchParams.set('action', action);
+      for(const [k,v] of Object.entries(extra)) u.searchParams.set(k,v);
+      const r=await fetchWithTimeout(u,{cache:'no-store'}); if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      return r.json();
     }
-    async function postJSON(body){
+    async function postPlain(body){
       const r=await fetchWithTimeout(GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
-      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText)); return r.json();
+      if(!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
+      return r.json();
     }
 
-    const API = {
-      login:(username,password)=> postJSON({op:'login',username,password}).catch(()=>getJSON('login?u='+username+'&p='+password)),
-      sessionInfo:(token)=> postJSON({op:'sessionInfo',token}),
-      listAll: async()=>{
-        const calls = await Promise.allSettled([
-          getJSON('listDirectory'),getJSON('listNotices'),getJSON('listIssues'),
-          getJSON('listTransactions'),getJSON('listDocuments'),getJSON('listVoters'),
-          getJSON('listOpeningBalances'),getJSON('listChartOfAccounts')
-        ]);
-        const pick=i=> calls[i].status==='fulfilled'?(calls[i].value?.rows||[]):[];
-        return {Directory:pick(0),Notices:pick(1),Issues:pick(2),Transactions:pick(3),Documents:pick(4),Voters:pick(5),OpeningBalances:pick(6),ChartOfAccounts:pick(7)};
+    const api = {
+      // auth
+      async login(u,p){ try{ return await postPlain({op:'login', username:u, password:p}); } catch{ return getJSON('login',{u,p}); } },
+      async sessionInfo(token){ return postPlain({op:'sessionInfo', token}); },
+
+      // list per sheet (your existing actions)
+      list: {
+        Directory: ()=>getJSON('listDirectory'),
+        Notices: ()=>getJSON('listNotices'),
+        Issues: ()=>getJSON('listIssues'),
+        Transactions: ()=>getJSON('listTransactions'),
+        Documents: ()=>getJSON('listDocuments'),
+        Voters: ()=>getJSON('listVoters'),
+        OpeningBalances: ()=>getJSON('listOpeningBalances').catch(()=>({rows:[]})),
+        ChartOfAccounts: ()=>getJSON('listChartOfAccounts').catch(()=>({rows:[]})),
+        Users: ()=>getJSON('listUsers').catch(()=>({rows:[]})),
       },
-      create:(sheet,row)=> postJSON({op:'create',sheet,row}),
-      update:(sheet,key,value,updates)=> postJSON({op:'update',sheet,key,value,updates}),
+
+      // generic create + upsert
+      async createRow(sheet, row){ return postPlain({ op:'createRow', sheet, row }); },
+      async upsertRow(sheet, key, row){ return postPlain({ op:'upsertRow', sheet, key, row }); },
     };
 
-    // ---------- Small atoms ----------
-    const Btn=({className="",...p})=><button className={"btn "+className} {...p}/>;
-    const Btn2=({className="",...p})=><button className={"btn2 "+className} {...p}/>;
-    const Back=({onClick})=><Btn2 onClick={onClick}>← Back</Btn2>;
-    const Chip=({children})=><span className="chip">{children}</span>;
+    // -------- small atoms
+    const Btn = (p)=><button className={"btn "+(p.className||'')} {...p}>{p.children}</button>;
+    const Ghost = (p)=><button className={"btn-ghost "+(p.className||'')} {...p}>{p.children}</button>;
+    const BackBar = ({onBack,title})=>(
+      <div className="flex items-center justify-between">
+        <Ghost onClick={onBack}>← Back</Ghost>
+        <div className="text-sm text-gray-500">{title}</div>
+      </div>
+    );
 
-    // ---------- Login ----------
-    function Login({onOK}){
-      const [u,setU]=useState(''); const [p,setP]=useState(''); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
-      async function go(){ if(busy) return; setBusy(true); setErr('');
-        try{ const r=await API.login(u,p); if(r?.ok && r?.token){ localStorage.setItem('session',r.token); onOK({token:r.token,role:(r.role||'user').toLowerCase(),username:r.username||u}); } else setErr(r?.error||'Invalid'); }
-        catch(e){ setErr(String(e)); } finally{ setBusy(false); }
-      }
-      return (
-        <div className="min-h-screen grid place-items-center" style={{ background: '#0b1020' }}>
-          <div className="card p-6 w-full max-w-md">
-            <div className="flex items-center gap-3 mb-3"><img src="assets/favicon.ico" className="w-8 h-8"/><div className="font-semibold">Global Hillview — Sign in</div></div>
-            <div className="grid gap-3">
-              <div><label className="text-sm">Username</label><input className="w-full mt-1" value={u} onChange={e=>setU(e.target.value)} /></div>
-              <div><label className="text-sm">Password</label><input className="w-full mt-1" type="password" value={p} onChange={e=>setP(e.target.value)} /></div>
-              <Btn onClick={go} className="flex gap-2 items-center justify-center">{busy && <span className="spin"></span>}<span>Sign in</span></Btn>
-              {err && <div style={{ color: '#ff8a8a' }} className="text-sm">{err}</div>}
-              <div className="text-xs text-[#9aa6d1]">Backend: <code>{GAS||'(unset)'}</code> • tip: <code>?gas=&lt;url&gt;</code></div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ---------- Toolbar + Summary ----------
-    function Toolbar({state,setState,total,extraRight}){
-      const set=(k,v)=> setState(s=>({...s,[k]:v,page:1}));
-      return (
-        <div className="toolbar flex items-center flex-wrap">
-          <input type="search" placeholder="Quick search…" value={state.q} onChange={e=>set('q',e.target.value)} />
-          <select value={state.sort} onChange={e=>set('sort',e.target.value)}>
-            <option value="">(No sort)</option>
-            {state.columns.map(c=><option key={c} value={c}>{c}</option>)}
-          </select>
-          <select value={state.dir} onChange={e=>set('dir',e.target.value)}>
-            <option value="asc">▲ Asc</option><option value="desc">▼ Desc</option>
-          </select>
-          <select value={state.limit} onChange={e=>set('limit',parseInt(e.target.value,10))}>
-            {[25,50,100,250].map(n=><option key={n} value={n}>{n}</option>)}
-          </select>
-          <Chip>{total} rows</Chip>
-          <div className="ml-auto">{extraRight}</div>
-        </div>
-      );
-    }
-
-    function SummaryCards({items}){
-      return (
-        <div className="grid md:grid-cols-6 sm:grid-cols-3 grid-cols-2 gap-3">
-          {items.map(([k,v])=>(
-            <div className="kpi" key={k}><div className="k">{k}</div><div className="v">{v}</div></div>
-          ))}
-        </div>
-      );
-    }
-
-    // ---------- Generic, editable grid view for any sheet ----------
-    function SheetView({title, rows, sheetName, keyGuess, isAdmin, onBack, onRefresh, summaryFn}){
-      // build columns (union)
+    // -------- dynamic grid editor (admin only)
+    function EditableGrid({ sheet, rows, isAdmin, onRefresh }){
+      // Collect ALL columns present
       const columns = useMemo(()=>{
-        const s=new Set(); (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>s.add(k))); return Array.from(s);
+        const set=new Set();
+        rows.forEach(r=>Object.keys(r||{}).forEach(k=>set.add(k)));
+        return Array.from(set);
       },[rows]);
 
-      // pick key column
-      const keyCol = useMemo(()=>{
-        const low = columns.map(c=>c.toLowerCase());
-        const candidates=[keyGuess,'tracking id','serial number','code','id','account','date','name'];
-        for(const c of candidates){ const i=low.indexOf(String(c||'').toLowerCase()); if(i>-1) return columns[i]; }
-        return columns[0]||'id';
-      },[columns,keyGuess]);
+      // Heuristic: key column per sheet
+      const keyField = useMemo(()=>{
+        const candidates = {
+          Issues: ['Tracking ID','Id','ID'],
+          Notices: ['Serial Number','ID'],
+          Directory: ['Serial','ID'],
+          Transactions: ['ID'],
+          Documents: ['Serial Number','ID'],
+          Voters: ['ID','Serial Number'],
+          OpeningBalances:['Account','ID'],
+          ChartOfAccounts:['Code','ID'],
+          Users:['Username','User','ID'],
+        }[sheet] || ['ID','Serial Number','Tracking ID'];
+        return candidates.find(c=>rows[0] && c in rows[0]) || candidates[0];
+      },[sheet,rows]);
 
-      // grid state
-      const [st,setSt]=useState({q:'',sort:'',dir:'asc',limit:100,page:1,columns});
-      useEffect(()=>{ setSt(s=>({...s,columns})); },[columns]);
+      // Local editable copies
+      const [draft, setDraft] = useState(()=>rows.map(r=>({...r})));
+      useEffect(()=>{ setDraft(rows.map(r=>({...r}))); },[rows]);
 
-      // filtered, sorted, paged
-      const filtered = useMemo(()=>{
-        const q = st.q.trim().toLowerCase();
-        let arr = rows||[];
-        if(q) arr = arr.filter(r=> columns.some(c=> String(r[c]??'').toLowerCase().includes(q)));
-        if(st.sort){
-          const k=st.sort;
-          arr = arr.slice().sort((a,b)=>{
-            const A=a[k]??'', B=b[k]??'';
-            if(A===B) return 0;
-            return (A > B ? 1 : -1) * (st.dir==='asc'?1:-1);
-          });
-        }
-        return arr;
-      },[rows,st.q,st.sort,st.dir,columns]);
+      function setCell(ridx, col, val){
+        setDraft(d => { const cp=d.slice(); cp[ridx] = { ...cp[ridx], [col]: val }; return cp; });
+      }
 
-      const total = filtered.length;
-      const pages = Math.max(1, Math.ceil(total / st.limit));
-      const page = Math.min(st.page, pages);
-      const start = (page-1)*st.limit;
-      const pageRows = filtered.slice(start, start + st.limit);
-
-      // Add form
-      const [add,setAdd]=useState(()=>Object.fromEntries(columns.map(c=>[c,''])));
-      useEffect(()=>{ setAdd(Object.fromEntries(columns.map(c=>[c,'']))); },[columns]);
-
-      async function saveRow(row){
+      async function saveRow(ridx){
         if(!isAdmin) return;
-        const key = row[keyCol];
-        if(key==null||key==='') return alert(`Missing key column "${keyCol}" value`);
-        try{ await API.update(sheetName,keyCol,String(key),row); await onRefresh(); }
-        catch(e){ alert(String(e)); }
-      }
-      async function create(){
-        if(!isAdmin) return alert('Only admin can add.');
-        try{ await API.create(sheetName,add); await onRefresh(); setAdd(Object.fromEntries(columns.map(c=>[c,'']))); }
-        catch(e){ alert(String(e)); }
+        const row = draft[ridx] || {};
+        const keyVal = row[keyField] ?? rows[ridx]?.[keyField];
+        try{
+          await api.upsertRow(sheet, keyField, { ...rows[ridx], ...row, [keyField]: keyVal });
+          await onRefresh();
+          alert('Saved');
+        }catch(e){ alert('Save failed: '+e); }
       }
 
-      // summary items per sheet (callable)
-      const summaryItems = summaryFn ? summaryFn(rows) : [['Rows', (rows||[]).length]];
+      // new row form
+      const emptyRow = Object.fromEntries(columns.map(c=>[c,'']));
+      const [newRow, setNewRow] = useState(emptyRow);
+      useEffect(()=>{ const e=Object.fromEntries(columns.map(c=>[c,''])); setNewRow(e); },[columns.join('|')]);
+
+      async function addRow(){
+        if(!isAdmin) return;
+        try{ await api.createRow(sheet, newRow); await onRefresh(); setNewRow(Object.fromEntries(columns.map(c=>[c,'']))); alert('Added'); }
+        catch(e){ alert('Add failed: '+e); }
+      }
 
       return (
-        <div className="grid gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Back onClick={onBack} />
-              <div className="text-sm text-[#aab3d0]">{title}</div>
-            </div>
-            <div className="text-xs text-[#9aa6d1]">Key: <code>{keyCol}</code></div>
-          </div>
-
-          <div className="card p-3">
-            <div className="titlebar">
-              <img src="assets/favicon.ico" alt="logo"/><h1>{title}</h1>
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h2 className="text-xl font-extrabold mb-2">📊 Summary Statistics</h2>
-            <SummaryCards items={summaryItems} />
-          </div>
-
-          <div className="card p-3">
-            <Toolbar state={st} setState={setSt} total={total} />
-          </div>
+        <div className="card p-4">
+          {!isAdmin && <div className="text-sm text-red-600 mb-2">Only admin can edit.</div>}
 
           {/* Add new */}
-          <div className="card p-4">
-            <div className="font-semibold">Add new</div>
-            {!isAdmin && <div className="text-[#ffb3b3] text-sm mt-1">Only admin can add/edit.</div>}
-            <div className="grid md:grid-cols-3 gap-2 mt-3">
-              {columns.map(c=>(
-                <div key={'add-'+c}><div className="text-xs mb-1">{c}</div>
-                  <input className="w-full" value={add[c]||''} onChange={e=>setAdd({...add,[c]:e.target.value})} disabled={!isAdmin}/>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3"><Btn onClick={create} disabled={!isAdmin}>Save</Btn></div>
-          </div>
-
-          {/* Grid */}
-          <div className="tablewrap">
-            <table>
-              <thead><tr>
-                {columns.map(h=>(
-                  <th key={h} onClick={()=>setSt(s=>({...s, sort:(s.sort===h?'':h), dir:(s.sort===h && s.dir==='asc')?'desc':'asc'}))}>
-                    {h}{st.sort===h ? (st.dir==='asc'?' ▲':' ▼') : ''}
-                  </th>
+          {isAdmin && (
+            <div className="mb-4">
+              <div className="font-medium mb-2">Add to {sheet}</div>
+              <div className="grid md:grid-cols-3 gap-2">
+                {columns.map(c=>(
+                  <div key={'add-'+c}>
+                    <div className="text-xs text-gray-500 mb-1">{c}</div>
+                    <input className="border rounded-lg p-2 w-full"
+                      value={newRow[c]??''} onChange={e=>setNewRow(r=>({...r,[c]:e.target.value}))}/>
+                  </div>
                 ))}
-                {isAdmin && <th>Actions</th>}
-              </tr></thead>
+              </div>
+              <div className="mt-3"><Btn onClick={addRow}>Add</Btn></div>
+              <hr className="my-4"/>
+            </div>
+          )}
+
+          {/* Table */}
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  {columns.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
+                  {isAdmin && <th className="py-2 pr-4">Save</th>}
+                </tr>
+              </thead>
               <tbody>
-                {pageRows.length===0 && <tr><td colSpan={columns.length+(isAdmin?1:0)} style={{color:'#f99',padding:'12px'}}>No results</td></tr>}
-                {pageRows.map((r,idx)=><Row key={idx} row={r} cols={columns} isAdmin={isAdmin} onSave={saveRow} />)}
+                {draft.map((r,idx)=>(
+                  <tr key={idx} className="border-t align-top">
+                    {columns.map(h=>{
+                      const v = r[h] ?? '';
+                      const isLong = String(v).length > 60 || /[\n\r]/.test(String(v));
+                      return (
+                        <td key={h} className="py-2 pr-4 whitespace-nowrap">
+                          {isAdmin
+                            ? (isLong
+                                ? <textarea rows="2" className="border rounded-lg p-2 w-[320px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />
+                                : <input className="border rounded-lg p-2 w-[220px]" value={v} onChange={e=>setCell(idx,h, e.target.value)} />)
+                            : String(v)}
+                        </td>
+                      );
+                    })}
+                    {isAdmin && <td className="py-2 pr-4"><Ghost onClick={()=>saveRow(idx)}>Save</Ghost></td>}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-
-          <div className="flex items-center justify-end gap-2 text-sm">
-            <Btn2 onClick={()=>st.page>1 && setSt(s=>({...s,page:s.page-1}))}>Prev</Btn2>
-            <span className="text-[#aab3d0]">Page {page} of {pages}</span>
-            <Btn2 onClick={()=>page<pages && setSt(s=>({...s,page:s.page+1}))}>Next</Btn2>
-          </div>
         </div>
       );
     }
 
-    function Row({row,cols,isAdmin,onSave}){
-      const [edit,setEdit]=useState(false);
-      const [val,setVal]=useState({...row});
-      useEffect(()=>{ setVal({...row}); },[row]);
-      return (
-        <tr>
-          {cols.map(c=>(
-            <td key={c}>
-              {edit && isAdmin
-                ? <input className="w-full" value={val[c]??''} onChange={e=>setVal({...val,[c]:e.target.value})}/>
-                : String(row[c]??'')}
-            </td>
-          ))}
-          {isAdmin && (
-            <td className="whitespace-nowrap">
-              {edit
-                ? (<><Btn2 onClick={()=>{setEdit(false);setVal({...row});}}>Cancel</Btn2>
-                    <Btn onClick={()=>onSave(val).then(()=>setEdit(false))} className="ml-2">Save</Btn></>)
-                : <Btn2 onClick={()=>setEdit(true)}>Edit</Btn2>}
-            </td>
-          )}
-        </tr>
-      );
-    }
+    // -------- pages (each uses EditableGrid)
+    const PageShell = ({title, onBack, children})=>(
+      <section className="grid gap-3">
+        <BackBar title={title} onBack={onBack} />
+        {children}
+      </section>
+    );
 
-    // ---------- Dashboard KPIs ----------
-    function Dashboard({data,isAdmin,onOpen}){
-      const open = data.Issues.filter(t=>(t.Status||'').toLowerCase()!=='closed').length;
-      const paid = data.Transactions.filter(t=>(t.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
-      const due  = data.Transactions.filter(t=>(t.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
+    function Dashboard({issues, directory, transactions, notices}){
+      const open = issues.filter(x=>(x.Status||'').toLowerCase()!=='closed').length;
+      const paid = transactions.filter(x=>(x.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
+      const deb  = transactions.filter(x=>(x.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
       return (
         <div className="grid gap-3">
-          <div className="grid md:grid-cols-6 sm:grid-cols-3 grid-cols-2 gap-3">
-            <div className="kpi"><div className="k">Residents</div><div className="v">{data.Directory.length}</div></div>
-            <div className="kpi"><div className="k">Open issues</div><div className="v">{open}</div></div>
-            <div className="kpi"><div className="k">Credits</div><div className="v">{INR.format(paid)}</div></div>
-            <div className="kpi"><div className="k">Debits</div><div className="v">{INR.format(due)}</div></div>
-            <div className="kpi"><div className="k">Net</div><div className="v">{INR.format(paid-due)}</div></div>
-            <div className="kpi"><div className="k">Role</div><div className="v">{isAdmin?'Admin':'User'}</div></div>
+          <div className="grid md:grid-cols-4 gap-3">
+            <div className="card p-4"><div className="text-xs text-gray-500">Residents</div><div className="text-2xl font-semibold">{directory.length}</div></div>
+            <div className="card p-4"><div className="text-xs text-gray-500">Open issues</div><div className="text-2xl font-semibold">{open}</div></div>
+            <div className="card p-4"><div className="text-xs text-gray-500">Collected</div><div className="text-2xl font-semibold">{INR.format(paid)}</div></div>
+            <div className="card p-4"><div className="text-xs text-gray-500">Debits</div><div className="text-2xl font-semibold">{INR.format(deb)}</div></div>
           </div>
-
-          <div className="card p-3">
-            <div className="flex flex-wrap gap-2">
-              {['Notices','Issues','Directory','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts'].map(n=>(
-                <Btn2 key={n} onClick={()=>onOpen(n.toLowerCase())}>{n}</Btn2>
+          <div className="card p-4">
+            <div className="font-medium mb-2">Latest notices</div>
+            <div className="grid gap-2">
+              {notices.slice(0,5).map((n,i)=>(
+                <div key={i} className="flex items-center justify-between border rounded-xl p-3">
+                  <div>
+                    <div className="font-medium">{n['Subject']}</div>
+                    <div className="text-xs text-gray-500">{n['Date']}</div>
+                  </div>
+                  <span className="badge">{n['Serial Number']||i+1}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -344,167 +256,121 @@
       );
     }
 
-    // ---------- App ----------
+    // -------- app
     function App(){
-      const [session,setSession]=useState({token:null,role:null,username:null});
-      const [data,setData]=useState(DEMO);
-      const [view,setView]=useState('dashboard');
-      const isAdmin = session.role==='admin';
+      const [view,setView]=useState('dashboard');               // dashboard | <sheetName>
+      const [session,setSession]=useState({token:null, role:null, username:null});
+      const [data,setData]=useState({ Directory:[], Notices:[], Issues:[], Transactions:[], Documents:[], Voters:[], OpeningBalances:[], ChartOfAccounts:[], Users:[] });
+      const [busy,setBusy]=useState(false);
+      const isAdmin = (session.role==='admin');
 
+      async function refresh(sheet){
+        setBusy(true);
+        try{
+          if(sheet){
+            const r = await api.list[sheet]();
+            setData(d=>({...d, [sheet]: (r?.rows||[])}));
+          }else{
+            const entries = await Promise.all(Object.keys(api.list).map(async k=>[k, (await api.list[k]())?.rows||[] ]));
+            setData(Object.fromEntries(entries));
+          }
+        } finally { setBusy(false); }
+      }
+
+      // session boot
       useEffect(()=>{
-        (async()=>{
-          const tok = qs.get('session') || localStorage.getItem('session');
-          if(tok){ try{ const s=await API.sessionInfo(tok); if(s?.ok){ setSession({token:tok,role:(s.role||'user').toLowerCase(),username:s.username||'user'}); } }catch(_){} }
-          try{ setData(await API.listAll()); } catch{ setData(DEMO); }
+        const tok = qs.get('session') || localStorage.getItem('session');
+        (async ()=>{
+          if(tok){
+            try{
+              const s = await api.sessionInfo(tok);
+              if(s?.ok){ setSession({token:tok, role:(s.role||'user').toLowerCase(), username:s.username||'user'}); }
+              else localStorage.removeItem('session');
+            }catch(_){}
+          }
+          await refresh();
         })();
       },[]);
 
-      async function refresh(){ try{ setData(await API.listAll()); } catch(e){ alert(String(e)); } }
-      function logout(){ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }
-
-      if(!session.token || !session.role) return <Login onOK={(s)=>{ setSession(s); refresh(); }} />;
-
-      const towersSummary = (rows)=>{
-        const counts = {T1:0,T2:0,T3:0,T4:0,T5:0};
-        rows.forEach(r=>{ const t=String(r['Tower No.']||r.Tower||'').toUpperCase(); if(counts[t]!=null) counts[t]++; });
-        const total = rows.length;
-        return [['Tower T1',counts.T1],['Tower T2',counts.T2],['Tower T3',counts.T3],['Tower T4',counts.T4],['Tower T5',counts.T5],['Total Flats',total]];
-      };
-      const txSummary = (rows)=>{
-        const paid = rows.filter(r=>(r.Type||'').toLowerCase()==='credit').reduce((a,b)=>a+Number(b.Amount||0),0);
-        const due  = rows.filter(r=>(r.Type||'').toLowerCase()==='debit').reduce((a,b)=>a+Number(b.Amount||0),0);
-        return [['Credits',INR.format(paid)],['Debits',INR.format(due)],['Net',INR.format(paid-due)],['Rows',rows.length],['—',''],['—','']];
-      };
-      const issuesSummary = (rows)=>{
-        const s = {Open:0,InProgress:0,Resolved:0,Closed:0};
-        rows.forEach(r=>{ const v=(r.Status||'').toString(); if(s[v]!=null) s[v]++; });
-        return [['Open',s.Open],['In Progress',s.InProgress],['Resolved',s.Resolved],['Closed',s.Closed],['Rows',rows.length],['—','']];
-      };
+      // Login gate
+      if(!session.token || !session.role){
+        return <LoginScreen onSuccess={(s)=>{ setSession(s); refresh(); }} backend={GAS} />;
+      }
 
       return (
-        <div>
-          <header className="flex items-center justify-between px-3">
-            <div className="flex items-center gap-2">
-              <img src="assets/favicon.ico" className="w-7 h-7"/>
-              <div className="font-semibold">Global Hillview — Society Portal</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Chip>Logged in: {session.role}</Chip>
-              <Btn2 onClick={logout}>Logout</Btn2>
+        <div className="max-w-7xl mx-auto p-4">
+          <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
+            <div className="h-14 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src="assets/brand-mark.png" className="w-8 h-8 rounded-md" alt="brand"/>
+                <div className="font-semibold">Global Hillview, Sec-11, Sohna, Gurgaon</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="badge">Logged in: {session.role}</span>
+                <Ghost onClick={()=>{ localStorage.removeItem('session'); setSession({token:null,role:null,username:null}); }}>Logout</Ghost>
+              </div>
             </div>
           </header>
 
-          <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
             <aside className="grid gap-2">
-              {['dashboard','notices','issues','directory','transactions','documents','voters','openingbalances','chartofaccounts'].map(t=>(
-                <Btn2 key={t} onClick={()=>setView(t)} className={view===t?'ring-2 ring-[#3b82f6]':''}>
-                  {t[0].toUpperCase()+t.slice(1)}
-                </Btn2>
+              {['dashboard','Directory','Notices','Issues','Transactions','Documents','Voters','OpeningBalances','ChartOfAccounts','Users'].map(tab=>(
+                <button key={tab} className={`btn-ghost text-left ${view===tab?'ring-2 ring-gray-300':''}`} onClick={()=>setView(tab)}>
+                  {tab==='dashboard'?'Dashboard':tab}
+                </button>
               ))}
+              <div className="card p-3 text-xs text-gray-500">
+                Backend: <code className="mono break-all">{GAS||'(missing)'}</code>
+                {busy && <div className="mt-2 flex items-center gap-2"><span className="spin"></span> Loading…</div>}
+              </div>
             </aside>
 
             <main className="grid gap-4">
-              {view==='dashboard' && <Dashboard data={data} isAdmin={isAdmin} onOpen={setView} />}
+              {view==='dashboard' && <Dashboard
+                issues={data.Issues} directory={data.Directory} transactions={data.Transactions} notices={data.Notices} />}
 
-              {view==='notices' && (
-                <SheetView
-                  title="Notices"
-                  rows={data.Notices}
-                  sheetName="Notices"
-                  keyGuess="Serial Number"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                />
-              )}
-
-              {view==='issues' && (
-                <SheetView
-                  title="Tickets (Issues)"
-                  rows={data.Issues}
-                  sheetName="Issues"
-                  keyGuess="Tracking ID"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                  summaryFn={issuesSummary}
-                />
-              )}
-
-              {view==='directory' && (
-                <SheetView
-                  title="Directory"
-                  rows={data.Directory}
-                  sheetName="Directory"
-                  keyGuess="Serial"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                />
-              )}
-
-              {view==='transactions' && (
-                <SheetView
-                  title="Payments (Transactions)"
-                  rows={data.Transactions}
-                  sheetName="Transactions"
-                  keyGuess="Date"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                  summaryFn={txSummary}
-                />
-              )}
-
-              {view==='documents' && (
-                <SheetView
-                  title="Documents"
-                  rows={data.Documents}
-                  sheetName="Documents"
-                  keyGuess="Serial Number"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                />
-              )}
-
-              {view==='voters' && (
-                <SheetView
-                  title="Voters"
-                  rows={data.Voters}
-                  sheetName="Voters"
-                  keyGuess="Flat No."
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                  summaryFn={towersSummary}
-                />
-              )}
-
-              {view==='openingbalances' && (
-                <SheetView
-                  title="Opening Balances"
-                  rows={data.OpeningBalances}
-                  sheetName="OpeningBalances"
-                  keyGuess="Account"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                />
-              )}
-
-              {view==='chartofaccounts' && (
-                <SheetView
-                  title="Chart of Accounts"
-                  rows={data.ChartOfAccounts}
-                  sheetName="ChartOfAccounts"
-                  keyGuess="Code"
-                  isAdmin={isAdmin}
-                  onBack={()=>setView('dashboard')}
-                  onRefresh={refresh}
-                />
+              {view!=='dashboard' && (
+                <PageShell title={view} onBack={()=>setView('dashboard')}>
+                  <EditableGrid
+                    sheet={view}
+                    rows={data[view]||[]}
+                    isAdmin={isAdmin}
+                    onRefresh={()=>refresh(view)}
+                  />
+                </PageShell>
               )}
             </main>
+          </div>
+        </div>
+      );
+    }
+
+    function LoginScreen({ onSuccess, backend }){
+      const [u,setU]=useState(''); const [p,setP]=useState(''); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+      async function go(){
+        setBusy(true); setErr('');
+        try{
+          const r=await api.login(u,p);
+          if(r?.ok && r?.token){ localStorage.setItem('session', r.token); onSuccess({token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u}); }
+          else setErr(r?.error||'Invalid credentials');
+        }catch(e){ setErr(String(e)); } finally{ setBusy(false); }
+      }
+      return (
+        <div className="login-bg grid place-items-center p-6">
+          <div className="w-full max-w-md">
+            <div className="card p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <img src="assets/logo.png" className="w-10 h-10 rounded-md" alt="logo"/>
+                <div className="font-semibold">Global Hillview — Society Portal</div>
+              </div>
+              <div className="grid gap-3">
+                <div><div className="text-sm text-gray-500">Username</div><input className="border rounded-xl p-2 w-full" value={u} onChange={e=>setU(e.target.value)} autoFocus/></div>
+                <div><div className="text-sm text-gray-500">Password</div><input type="password" className="border rounded-xl p-2 w-full" value={p} onChange={e=>setP(e.target.value)}/></div>
+                <Btn onClick={go} disabled={busy} className="flex items-center gap-2 justify-center">{busy&&<span className="spin"></span>}<span>{busy?'Signing in…':'Sign in'}</span></Btn>
+                {err && <div className="text-red-600 text-sm">{err}</div>}
+              </div>
+            </div>
+            <div className="text-white/70 text-xs mt-3">Backend: <code className="mono">{backend||'(not set)'}</code></div>
           </div>
         </div>
       );
