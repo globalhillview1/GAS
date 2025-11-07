@@ -2,8 +2,8 @@
      ✅ React 18 UMD + Babel Standalone (runs directly on GH Pages)
      ✅ No imports/TypeScript/bundler needed
      ✅ Connects to your Google Apps Script backend
-     ✅ Robust fetch with timeout+retries, clear errors, and Demo Mode fallback
-     ✅ Admin vs User roles (only Admin can post Notices, raise/edit Tickets, see & add Transactions)
+     ✅ Robust fetch with timeout+retries + partial load (no blank page)
+     ✅ Admin vs User roles (only Admin can post Notices, raise/edit Tickets, view & add Transactions)
      ✅ Pages map 1:1 to sheet tabs; tables render ALL columns
      ✅ Back button on every sub-page; INR ₹; dates in DD-MM-YYYY
 -->
@@ -96,15 +96,17 @@
       Users: [ { Username: 'admin', Password: 'admin', Role: 'admin', Active: 'Yes' }, { Username: 'resident', Password: 'resident', Role: 'user', Active: 'Yes' } ]
     };
 
-    // Fetch with timeout + retries
+    // Fetch with timeout + retries (no TS/JSX leakage)
     async function fetchWithTimeout(url, opts={}, timeoutMs=30000){
-      // Increase timeout to 30s — GAS cold starts can exceed 10–12s.
       const controller=new AbortController();
       const id=setTimeout(()=>controller.abort('timeout'), timeoutMs);
-      try{ return await fetch(url,{...opts,signal:controller.signal}); }
-      finally{ clearTimeout(id); }
-    }); } finally{ clearTimeout(id); }
+      try{
+        return await fetch(url,{...opts,signal:controller.signal});
+      } finally {
+        clearTimeout(id);
+      }
     }
+
     async function api(action, method='GET', payload, retries=2){
       if(!BASE_URL) throw new Error('Missing BASE_URL');
       const url=new URL(BASE_URL); url.searchParams.set('action', action);
@@ -117,14 +119,6 @@
           if(!res.ok) throw new Error(await res.text());
           return await res.json();
         }catch(e){ lastErr=e; if(i===retries) throw e; await new Promise(r=>setTimeout(r, 800*(i+1))); }
-      }
-      throw lastErr;
-    } : {};
-      const opts={method, headers}; if(method==='POST' && payload) opts.body=JSON.stringify(payload);
-      let lastErr;
-      for(let i=0;i<=retries;i++){
-        try{ const res=await fetchWithTimeout(url.toString(), opts, 12000); if(!res.ok) throw new Error(await res.text()); return await res.json(); }
-        catch(e){ lastErr=e; if(i===retries) throw e; await new Promise(r=>setTimeout(r, 600*(i+1))); }
       }
       throw lastErr;
     }
@@ -228,13 +222,16 @@
     }
 
     function Issues({tickets,onCreate,writable,onBack,isAdmin}){
-      // FULL columns as requested
       const COLS=['Tracking ID','Date and Time Raised','Tower','Flat','Issue','Description','Media URL','Status','Redressal Remark','User ID','Date and Time Resolved','Time Taken','Feedback Rating'];
       const [form,setForm]=useState({Issue:'',Category:'Infrastructure',Flat:'',Tower:'',Description:'',MediaURL:''});
+      const [editId,setEditId]=useState(null);
+      const [edit,setEdit]=useState({ Status:'Open', 'Redressal Remark':'', 'Date and Time Resolved':'', 'Time Taken':'', 'Feedback Rating':'' });
+
       const submit=async()=>{
         if(!isAdmin) return alert('Only Admin can raise tickets.');
         if(!form.Issue||!form.Flat) return;
         const payload={
+          'Tracking ID': cryptoRandomId(),
           'Issue': form.Issue,
           'Category': form.Category,
           'Flat': form.Flat,
@@ -248,6 +245,39 @@
         await onCreate(payload);
         setForm({Issue:'',Category:'Infrastructure',Flat:'',Tower:'',Description:'',MediaURL:''});
       };
+
+      async function saveEdit(){
+        if(!isAdmin) return;
+        const id = editId; if(!id) return;
+        const payload = { 'Tracking ID': id, ...edit };
+        if(edit['Date and Time Resolved']){
+          const d=new Date(edit['Date and Time Resolved']);
+          if(!isNaN(d.getTime())) payload['Date and Time Resolved']=d.toISOString();
+        }
+        try{
+          if(!writable){ alert('Demo Mode: write disabled'); return; }
+          const res = await api('updateIssue','POST', payload);
+          if(res && res.success){
+            try { const fresh = await api('listIssues'); if(fresh?.rows && window.__setTickets) window.__setTickets(fresh.rows); } catch(_) {}
+            setEditId(null); setEdit({ Status:'Open','Redressal Remark':'','Date and Time Resolved':'','Time Taken':'','Feedback Rating':'' });
+            alert('Ticket updated');
+          } else { alert('Update failed'); }
+        }catch(e){ alert('Update error: '+e); }
+      }
+
+      function startEdit(row){
+        setEditId(row['Tracking ID']);
+        setEdit({
+          Status: row['Status']||'Open',
+          'Redressal Remark': row['Redressal Remark']||'',
+          'Date and Time Resolved': row['Date and Time Resolved']||'',
+          'Time Taken': row['Time Taken']||'',
+          'Feedback Rating': row['Feedback Rating']||''
+        });
+      }
+
+      const categories = ['Infrastructure','Plumbing','Electrical','Housekeeping','Security'];
+
       return (
         <Section>
           <BackBar title="Tickets (Issues)" onBack={onBack} />
@@ -264,7 +294,7 @@
                 <div>
                   <label className="block text-sm mb-1">Category</label>
                   <select className="w-full border rounded-xl p-2" value={form.Category} onChange={e=>setForm({...form,Category:e.target.value})}>
-                    {['Infrastructure','Plumbing','Electrical','Housekeeping','Security'].map(c=> <option key={c} value={c}>{c}</option>)}
+                    {categories.map(c=> <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
@@ -287,18 +317,64 @@
               </div>
             </div>
           )}
+
           <div className="card p-5 mt-3">
             <div className="font-medium mb-2">All Issues</div>
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
-                <thead><tr className="text-left text-gray-600">{COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}</tr></thead>
+                <thead>
+                  <tr className="text-left text-gray-600">
+                    {COLS.map(h=> <th key={h} className="py-2 pr-4 whitespace-nowrap">{h}</th>)}
+                    {isAdmin && <th className="py-2 pr-4 whitespace-nowrap">Edit</th>}
+                  </tr>
+                </thead>
                 <tbody>
                   {tickets.map((row,i)=> (
-                    <tr key={i} className="border-t">
+                    <tr key={i} className="border-t align-top">
                       {COLS.map(h=>{
                         const v=row[h] || row[h.replace('Media URL','MediaURL')] || '';
-                        return <td key={h} className="py-2 pr-4 whitespace-nowrap">{h.includes('Date')?toDDMMYYYY(v):String(v)}</td>
+                        const show = h.includes('Date')? toDDMMYYYY(v) : String(v);
+                        return <td key={h} className="py-2 pr-4 whitespace-nowrap">{show}</td>
                       })}
+                      {isAdmin && (
+                        <td className="py-2 pr-4">
+                          {editId===row['Tracking ID'] ? (
+                            <div className="grid gap-2">
+                              <div>
+                                <label className="block text-xs mb-1">Status</label>
+                                <select className="w-full border rounded-xl p-2" value={edit['Status']} onChange={e=>setEdit({...edit,Status:e.target.value})}>
+                                  {['Open','InProgress','Resolved','Closed'].map(s=> <option key={s}>{s}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs mb-1">Redressal Remark</label>
+                                <textarea className="w-full border rounded-xl p-2" rows="2" value={edit['Redressal Remark']} onChange={e=>setEdit({...edit,'Redressal Remark':e.target.value})}></textarea>
+                              </div>
+                              <div>
+                                <label className="block text-xs mb-1">Date and Time Resolved</label>
+                                <input className="w-full border rounded-xl p-2" type="datetime-local" value={edit['Date and Time Resolved']} onChange={e=>setEdit({...edit,'Date and Time Resolved':e.target.value})} />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-xs mb-1">Time Taken</label>
+                                  <input className="w-full border rounded-xl p-2" value={edit['Time Taken']} onChange={e=>setEdit({...edit,'Time Taken':e.target.value})} />
+                                </div>
+                                <div>
+                                  <label className="block text-xs mb-1">Feedback Rating</label>
+                                  <input className="w-full border rounded-xl p-2" type="number" min="1" max="5" value={edit['Feedback Rating']} onChange={e=>setEdit({...edit,'Feedback Rating':e.target.value})} />
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button className="btn" onClick={saveEdit}>Save</button>
+                                <button className="btn-secondary" onClick={()=>{setEditId(null);}}>Cancel</button>
+                                <button className="btn-secondary" onClick={()=>{ setEdit({...edit,Status:'Resolved','Date and Time Resolved': new Date().toISOString().slice(0,16)}); }}>Mark Resolved Now</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button className="btn-secondary" onClick={()=>startEdit(row)}>Edit</button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -309,12 +385,14 @@
       );
     }
 
+    function cryptoRandomId(){ try{ return crypto.randomUUID(); }catch(_){ return Math.random().toString(36).slice(2); }}
+
     function Directory({rows,onBack,isAdmin,onCreate}){
       const COLS=['Serial','Name','Flat','Phone','Email','Photo'];
       const [photoData,setPhotoData]=useState('');
       const [form,setForm]=useState({Name:'',Flat:'',Phone:'',Email:''});
       const onFile=(e)=>{
-        const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setPhotoData(r.result); r.readAsDataURL(f);
+        const f=e.target.files && e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setPhotoData(r.result); r.readAsDataURL(f);
       };
       const submit=async()=>{
         if(!isAdmin) return alert('Only Admin can add to Directory.');
@@ -540,13 +618,14 @@
       const [session,setSession]=useState({username:'guest',role:(new URLSearchParams(location.search).get('role'))||'user'});
       const [search,setSearch]=useState('');
 
+      // expose for inline refresh after updateIssue
+      useEffect(()=>{ window.__setTickets = setTickets; return ()=>{ delete window.__setTickets; }; },[]);
+
       async function loadAll(){
         if(FORCE_DEMO || !BASE_URL){ useDemo(); return; }
         try{
           setLoading(true); setLastError('');
-          // Warm-up ping (short timeout) to reduce cold-start latency
           try { await api('listIssues','GET',null,0); } catch(_) {}
-          // Fetch everything, but don't fail the whole load on one slow/failed tab
           const calls = [
             ['dir', ()=>api('listDirectory')],
             ['nts', ()=>api('listNotices')],
@@ -575,77 +654,4 @@
         }catch(err){ setLastError(err); useDemo(); }
         finally{ setLoading(false); }
       }
-        try{
-          setLoading(true); setLastError('');
-          const [dir,nts,iss,txs,docs,vts,obs,coa,us]=await Promise.all([
-            api('listDirectory','GET',null,1),
-            api('listNotices','GET',null,1),
-            api('listIssues','GET',null,1),
-            api('listTransactions','GET',null,1),
-            api('listDocuments','GET',null,1),
-            api('listVoters','GET',null,1),
-            api('listOpeningBalances','GET',null,1).catch(()=>({rows:DEMO.OpeningBalances})),
-            api('listChartOfAccounts','GET',null,1).catch(()=>({rows:DEMO.ChartOfAccounts})),
-            api('listUsers','GET',null,1).catch(()=>({rows:DEMO.Users})),
-          ]);
-          setDirectory(dir?.rows||[]); setNotices(nts?.rows||[]); setTickets(iss?.rows||[]); setTransactions(txs?.rows||[]); setDocuments(docs?.rows||[]); setVoters(vts?.rows||[]); setOpeningBalances(obs?.rows||[]); setChart(coa?.rows||[]); setUsers(us?.rows||[]); setMode('LIVE');
-        }catch(err){ setLastError(err); useDemo(); } finally{ setLoading(false); }
-      }
-      function useDemo(){ setDirectory(DEMO.Directory); setNotices(DEMO.Notices); setTickets(DEMO.Issues); setTransactions(DEMO.Transactions); setDocuments(DEMO.Documents); setVoters(DEMO.Voters); setOpeningBalances(DEMO.OpeningBalances); setChart(DEMO.ChartOfAccounts); setUsers(DEMO.Users); setMode('DEMO'); }
-      useEffect(()=>{ loadAll(); },[]);
-
-      function handleLogin(username,password){ const pool=users&&users.length?users:DEMO.Users; const m=pool.find(u=>(u.Username||'').toLowerCase()===String(username).toLowerCase() && String(u.Password||'')===String(password) && String(u.Active||'Yes').toLowerCase().startsWith('y')); if(m){ setSession({username:m.Username||username,role:(m.Role||'user').toLowerCase()}); alert('Logged in as '+(m.Username||username)); } else { alert('Invalid credentials'); } }
-      function handleLogout(){ setSession({username:'guest',role:'user'}); }
-
-      const residents = useMemo(()=> directory.map(r=>({ id:r.Serial??r.id??`${r.Name}-${r.Flat}`, Name:r.Name??r['First Owner Name']??'', Flat:r.Flat??`${r['Tower No.']||''}-${r['Flat No.']||''}`, Phone:r.Phone||r.Mobile||'', Email:r.Email||'', Photo:r.Photo||'' })),[directory]);
-      const filteredResidents = useMemo(()=>{ const q=search.toLowerCase(); return residents.filter(r=>[r.Name,r.Flat,r.Phone,r.Email].some(v=>String(v||'').toLowerCase().includes(q))); },[search,residents]);
-
-      const isAdmin = session.role==='admin';
-      const writable = mode==='LIVE';
-
-      return (
-        <div className="max-w-7xl mx-auto p-4">
-          <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur mb-4">
-            <div className="h-14 flex items-center justify-between">
-              <div className="font-semibold text-lg">🏡 {SOCIETY_NAME}</div>
-              <div className="hidden md:flex gap-2">
-                <input className="border rounded-xl px-3 py-2 w-80" placeholder="Search directory…" value={search} onChange={e=>setSearch(e.target.value)} />
-                <button className="btn-secondary">Search</button>
-              </div>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
-            <aside className="grid gap-2">
-              {['dashboard','notices','tickets','directory','payments','openingBalances','chartOfAccounts','documents','voters','admin'].map(tab=> (
-                <NavItem key={tab} label={tab.charAt(0).toUpperCase()+tab.slice(1)} active={view===tab} onClick={()=>setView(tab)} />
-              ))}
-              <Diagnostics baseUrl={BASE_URL} lastError={lastError} mode={mode} rerun={loadAll} tests={tests} />
-            </aside>
-
-            <main className="grid gap-4">
-              {loading && <div className="text-sm text-gray-500">Loading from Google Sheets…</div>}
-              {mode==='DEMO' && <Banner kind="error">Failed to reach backend. Running in Demo Mode so you can still try the app.</Banner>}
-              {mode==='LIVE' && lastError && <Banner kind="error">Some data timed out. Page is using what loaded. Details: {String(lastError)}</Banner>}
-              {view==='dashboard' && <Dashboard residents={residents} tickets={tickets} transactions={transactions} notices={notices} />}
-              {view==='notices' && <Notices notices={notices} onCreate={async n=>{ if(!writable){alert('Demo Mode: write disabled'); return n;} const created=await api('createNotice','POST',n); setNotices(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
-              {view==='tickets' && <Issues tickets={tickets} onCreate={async t=>{ if(!writable){alert('Demo Mode: write disabled'); return t;} const created=await api('createIssue','POST',t); setTickets(p=>[created,...p]); return created; }} writable={writable} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
-              {view==='directory' && <Directory rows={directory} onCreate={async r=>{ if(!writable){alert('Demo Mode: write disabled'); return r;} const created=await api('createDirectory','POST',r); setDirectory(p=>[...p, created]); return created; }} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
-              {view==='payments' && <Payments transactions={transactions} onCreate={async p=>{ if(!writable){alert('Demo Mode: write disabled'); return p;} const created=await api('createTransaction','POST',p); setTransactions(prev=>[...prev, created]); return created; }} isAdmin={isAdmin} onBack={()=>setView('dashboard')} />}
-              {view==='openingBalances' && <OpeningBalances rows={openingBalances} onBack={()=>setView('dashboard')} />}
-              {view==='chartOfAccounts' && <ChartOfAccounts rows={chart} onBack={()=>setView('dashboard')} />}
-              {view==='documents' && <Documents documents={documents} onBack={()=>setView('dashboard')} />}
-              {view==='voters' && <Voters voters={voters} onBack={()=>setView('dashboard')} />}
-              {view==='admin' && <Admin users={users} session={session} onLogin={handleLogin} onLogout={handleLogout} onBack={()=>setView('dashboard')} />}
-            </main>
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
-
-  <noscript><div class="p-8 text-center">⚠️ This app requires JavaScript. Please enable it.</div></noscript>
-</body>
-</html>
+      function useDemo(){ setDirectory(DEMO.Directory); setNotices(DEMO.Notices); setTickets(DEMO.Issues); setTransactions(DEMO.Transactions); setDocuments(DEMO.Documents); setVoters(DEMO.Voters); setOpeningBalances(DEMO.Opening
