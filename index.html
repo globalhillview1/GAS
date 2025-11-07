@@ -392,36 +392,102 @@
       );
     }
 
-    function LoginScreen({ onSuccess, backend }){
-      const [u,setU]=useState(''); const [p,setP]=useState(''); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
-      async function go(){
-        setBusy(true); setErr('');
-        try{
-          const r=await api.login(u,p);
-          if(r?.ok && r?.token){ localStorage.setItem('session', r.token); onSuccess({token:r.token, role:(r.role||'user').toLowerCase(), username:r.username||u}); }
-          else setErr(r?.error||'Invalid credentials');
-        }catch(e){ setErr(String(e)); } finally{ setBusy(false); }
-      }
-      return (
-        <div className="login-bg grid place-items-center p-6">
-          <div className="w-full max-w-md">
-            <div className="card p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <img src="android-chrome-192x192.png" className="w-10 h-10 rounded-md" alt="logo"/>
-                <div className="font-semibold">Global Hillview — Society Portal</div>
-              </div>
-              <div className="grid gap-3">
-                <div><div className="text-sm text-gray-500">Username</div><input className="border rounded-xl p-2 w-full" value={u} onChange={e=>setU(e.target.value)} autoFocus/></div>
-                <div><div className="text-sm text-gray-500">Password</div><input type="password" className="border rounded-xl p-2 w-full" value={p} onChange={e=>setP(e.target.value)}/></div>
-                <Btn onClick={go} disabled={busy} className="flex items-center gap-2 justify-center">{busy&&<span className="spin"></span>}<span>{busy?'Signing in…':'Sign in'}</span></Btn>
-                {err && <div className="text-red-600 text-sm">{err}</div>}
-              </div>
+    function LoginScreen({ onSuccess }) {
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function go() {
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await api.login(u, p);
+      if (r?.ok && r?.token) {
+        localStorage.setItem('session', r.token);
+        onSuccess({
+          token: r.token,
+          role: (r.role || 'user').toLowerCase(),
+          username: r.username || u,
+        });
+      } else setErr(r?.error || 'Invalid credentials');
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-bg grid place-items-center p-6">
+      <div className="w-full max-w-md">
+        <div
+          className="card p-8 shadow-2xl rounded-2xl"
+          style={{
+            background:
+              'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(240,240,255,0.95) 100%)',
+          }}
+        >
+          <div className="flex items-center gap-3 mb-6 justify-center">
+            <img
+              src="android-chrome-192x192.png"
+              className="w-12 h-12 rounded-lg shadow-md"
+              alt="Global Hillview logo"
+            />
+            <div className="text-xl font-bold text-gray-800 text-center">
+              Global Hillview — Society Portal
             </div>
-            <div className="text-white/70 text-xs mt-3">Backend: <code className="mono">{backend||'(not set)'}</code></div>
+          </div>
+
+          <div className="grid gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Username</label>
+              <input
+                className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
+                value={u}
+                onChange={(e) => setU(e.target.value)}
+                placeholder="Enter username"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Password</label>
+              <input
+                type="password"
+                className="border rounded-xl p-2 w-full focus:ring-2 focus:ring-green-500"
+                value={p}
+                onChange={(e) => setP(e.target.value)}
+                placeholder="Enter password"
+              />
+            </div>
+            <button
+              onClick={go}
+              disabled={busy}
+              className="btn w-full flex items-center justify-center gap-2 rounded-xl shadow-md hover:shadow-lg hover:brightness-105 transition"
+            >
+              {busy && <span className="spin"></span>}
+              <span>{busy ? 'Signing in…' : 'Sign in'}</span>
+            </button>
+
+            {err && (
+              <div className="text-red-600 text-center text-sm mt-2">
+                {err}
+              </div>
+            )}
           </div>
         </div>
-      );
-    }
+
+        {/* Hidden backend info (keep for debugging, not shown) */}
+        <div className="hidden text-white/70 text-xs mt-3">
+          Backend: <code className="mono">{window.ENV_GAS_URL}</code>
+        </div>
+      </div>
+    </div>
+    <p className="text-gray-400 text-xs text-center mt-4 italic">
+  © Global Hillview RWA Portal
+</p>
+  );
+}
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
