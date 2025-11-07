@@ -105,8 +105,19 @@
       if(!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       return res.json();
     }
+    async function getJSON(action, params = {}) {
+  const url = new URL(GAS);
+  url.searchParams.set("action", action);
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, v ?? "");
+  }
+  const res = await fetchWithTimeout(url.toString(), { method: "GET", cache: "no-store" });
+  if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
+  return res.json();
+}
+
     const api = {
-      async login(u,p){ return postJSON({ op:"login", username:u, password:p }); },
+      async login(u,p){ return getJSON("login", { u, p }); },
       async sessionInfo(token){ return postJSON({ op:"sessionInfo", token }); },
       async update(token, payload){ return postJSON({ op:"update", token, ...payload }); },
       async list(){
