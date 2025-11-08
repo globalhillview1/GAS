@@ -1759,4 +1759,21 @@
               ) : view === 'Notices' ? (
                 <NoticesPage data={data.Notices} isAdmin={isAdmin} onRefresh={refreshData} />
               ) : view === 'Transactions' ? (
-                <TransactionsPage data={data.Transactions} isAdmin={isAdmin} onRefresh
+                <TransactionsPage data={data.Transactions} isAdmin={isAdmin} onRefresh={refreshData} chartOfAccounts={data.ChartOfAccounts} />
+              ) : view === 'Documents' ? (
+                <DocumentsPage data={data.Documents} isAdmin={isAdmin} onRefresh={refreshData} />
+              ) : view === 'Voters' ? (
+                <GenericTable title="Voters" data={data.Voters} isAdmin={isAdmin} onRefresh={refreshData} />
+              ) : (
+                <GenericTable title={view} data={data[view]} isAdmin={isAdmin} onRefresh={refreshData} />
+              )}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
