@@ -308,7 +308,7 @@
     function Dashboard({ data, onNavigate }) {
       const stats = useMemo(() => {
         const openIssues = data.Issues.filter(i => (i.Status || '').toLowerCase() !== 'resolved').length;
-        const totalEnviro Staff = data.Directory.length;
+        const totalEnviroStaff = data.Directory.length;
         const collected = data.Transactions
           .filter(t => (t.Type || '').toLowerCase() === 'credit')
           .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
@@ -316,7 +316,7 @@
           .filter(t => (t.Type || '').toLowerCase() === 'debit')
           .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
         
-        return { openIssues, totalEnviro Staff, collected, expenses };
+        return { openIssues, totalEnviroStaff, collected, expenses };
       }, [data]);
 
       return (
@@ -328,8 +328,8 @@
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm font-medium">Total Enviro Staff</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalEnviro Staff}</p>
+                  <p className="text-gray-600 text-sm font-medium">Total EnviroStaff</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalEnviroStaff}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
