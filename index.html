@@ -90,7 +90,7 @@
     .modal-content {
       background: white;
       border-radius: 16px;
-      max-width: 800px;
+      max-width: 900px;
       width: 90%;
       max-height: 90vh;
       overflow-y: auto;
@@ -277,263 +277,30 @@
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {loading && <div className="spinner" />}
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setUsername('demo'); setPassword('demo'); }}
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
-                >
-                  Use Demo Account
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    function Dashboard({ data, onNavigate }) {
-      const stats = useMemo(() => {
-        const openIssues = data.Issues.filter(i => (i.Status || '').toLowerCase() !== 'resolved').length;
-        const totalEnviroStaff = data.Directory.length;
-        const collected = data.Transactions
-          .filter(t => (t.Type || '').toLowerCase() === 'credit')
-          .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
-        const expenses = data.Transactions
-          .filter(t => (t.Type || '').toLowerCase() === 'debit')
-          .reduce((sum, t) => sum + Number(t.Amount || 0), 0);
-        
-        return { openIssues, totalEnviroStaff, collected, expenses };
-      }, [data]);
-
-      return (
-        <div className="space-y-6 fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div 
-              onClick={() => onNavigate('Directory')}
-              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Total Enviro Staff</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalEnviroStaff}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
+                  <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Avg. Rating</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.data.avgRating} ⭐</p>
               </div>
             </div>
+          )}
 
-            <div 
-              onClick={() => onNavigate('Issues')}
-              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Open Issues</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.openIssues}</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
+          {stats && stats.type === 'notices' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Total Notices</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.data.total}</p>
               </div>
-            </div>
-
-            <div 
-              onClick={() => onNavigate('Transactions')}
-              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Collected</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">{INR.format(stats.collected)}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">This Month</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.data.thisMonth}</p>
               </div>
-            </div>
-
-            <div 
-              onClick={() => onNavigate('Transactions')}
-              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Expenses</p>
-                  <p className="text-3xl font-bold text-red-600 mt-2">{INR.format(stats.expenses)}</p>
-                </div>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Notices</h3>
-                <button
-                  onClick={() => onNavigate('Notices')}
-                  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
-                >
-                  View All →
-                </button>
-              </div>
-              <div className="space-y-3">
-                {data.Notices.slice(0, 5).map((notice, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => onNavigate('Notices')}
-                    className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{notice.Subject}</p>
-                      <p className="text-xs text-gray-500 mt-1">{notice.Date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Issues</h3>
-                <button
-                  onClick={() => onNavigate('Issues')}
-                  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
-                >
-                  View All →
-                </button>
-              </div>
-              <div className="space-y-3">
-                {data.Issues.slice(0, 5).map((issue, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => onNavigate('Issues')}
-                    className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{issue.Title || issue.Description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`status-badge status-${(issue.Status || 'open').toLowerCase().replace(' ', '')}`}>
-                          {issue.Status || 'Open'}
-                        </span>
-                        <span className="text-xs text-gray-500">{issue['Tracking ID']}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Directory Page with all requested features
-    function DirectoryPage({ data, isAdmin, onRefresh }) {
-      const [search, setSearch] = useState('');
-      const [activeFilter, setActiveFilter] = useState('all');
-      const [showAddModal, setShowAddModal] = useState(false);
-      const [editRow, setEditRow] = useState(null);
-
-      const filtered = useMemo(() => {
-        let result = data;
-        
-        if (activeFilter === 'active') {
-          result = result.filter(r => (r.Active || '').toLowerCase() === 'yes');
-        } else if (activeFilter === 'inactive') {
-          result = result.filter(r => (r.Active || '').toLowerCase() === 'no' || (r.Active || '').toLowerCase() === 'non-active');
-        }
-        
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          result = result.filter(r => 
-            Object.values(r).some(v => String(v).toLowerCase().includes(q))
-          );
-        }
-        
-        return result;
-      }, [data, search, activeFilter]);
-
-      const deptStats = useMemo(() => {
-        const stats = {};
-        data.forEach(r => {
-          const dept = r.Department || r.Designation || 'Other';
-          if (!stats[dept]) stats[dept] = 0;
-          if ((r.Active || '').toLowerCase() === 'yes') stats[dept]++;
-        });
-        return Object.entries(stats).sort((a, b) => b[1] - a[1]);
-      }, [data]);
-
-      return (
-        <div className="space-y-6 fade-in">
-          <div className="bg-white rounded-2xl shadow-sm p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => setActiveFilter('all')}
-                className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'all' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-              >
-                All ({data.length})
-              </button>
-              <button
-                onClick={() => setActiveFilter('active')}
-                className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'active' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-              >
-                Active
-              </button>
-              <button
-                onClick={() => setActiveFilter('inactive')}
-                className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'inactive' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-              >
-                Non-Active
-              </button>
-            </div>
-          </div>
-
-          {deptStats.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {deptStats.map(([dept, count]) => (
-                <div key={dept} className="bg-white rounded-xl p-4 shadow-sm">
-                  <p className="text-xs text-gray-600 truncate" title={dept}>{dept}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{count}</p>
-                </div>
-              ))}
             </div>
           )}
 
           <div className="bg-white rounded-2xl shadow-sm">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-xl font-semibold text-gray-900">Directory ({filtered.length})</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{title} ({filtered.length})</h2>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -542,7 +309,7 @@
                     placeholder="Search..."
                     className="px-4 py-2 border border-gray-300 rounded-lg"
                   />
-                  {isAdmin && (
+                  {isAdmin && allowAdd && (
                     <button
                       onClick={() => setShowAddModal(true)}
                       className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
@@ -561,39 +328,52 @@
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Photo</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gender</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manager</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resigned On</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
-                    {isAdmin && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>}
+                    {columns.map(col => (
+                      <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                        {col}
+                      </th>
+                    ))}
+                    {isAdmin && allowEdit && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filtered.map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        {row.Photo ? (
-                          <img src={row.Photo} alt="Photo" className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
-                            {(row.Name || row['Employee Name'] || 'N')[0]}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">{row.Name || row['Employee Name']}</td>
-                      <td className="px-4 py-3 text-sm">{row.Department || row.Designation}</td>
-                      <td className="px-4 py-3 text-sm">{row.Gender}</td>
-                      <td className="px-4 py-3 text-sm">{row.Manager}</td>
-                      <td className="px-4 py-3 text-sm">{row['Resigned On']}</td>
-                      <td className="px-4 py-3">
-                        <span className={`status-badge ${(row.Active || '').toLowerCase() === 'yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {row.Active || 'No'}
-                        </span>
-                      </td>
-                      {isAdmin && (
+                      {columns.map(col => (
+                        <td key={col} className="px-4 py-3 text-sm">
+                          {col === 'Photo' && row[col] ? (
+                            <img src={row[col]} alt="Photo" className="w-10 h-10 rounded-full object-cover" />
+                          ) : col === 'Photo' ? (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
+                              {(row['Name'] || row['Employee Name'] || 'N')[0]}
+                            </div>
+                          ) : col === 'Status' ? (
+                            <span className={`status-badge status-${(row[col] || 'open').toLowerCase().replace(' ', '')}`}>
+                              {row[col] || 'Open'}
+                            </span>
+                          ) : col === 'Active' ? (
+                            <span className={`status-badge ${(row[col] || '').toLowerCase() === 'yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                              {row[col] || 'No'}
+                            </span>
+                          ) : col === 'Media' && row[col] ? (
+                            <a
+                              href={row[col]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
+                            </a>
+                          ) : (
+                            String(row[col] || '')
+                          )}
+                        </td>
+                      ))}
+                      {isAdmin && allowEdit && (
                         <td className="px-4 py-3">
                           <button
                             onClick={() => setEditRow(row)}
@@ -607,19 +387,28 @@
                   ))}
                 </tbody>
               </table>
+              
+              {filtered.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  No data found
+                </div>
+              )}
             </div>
           </div>
 
           {(showAddModal || editRow) && (
-            <DirectoryModal
+            <GenericModal
+              title={title}
+              columns={columns}
               row={editRow}
+              editableFields={editableFields}
               onClose={() => { setShowAddModal(false); setEditRow(null); }}
-              onSave={async (data) => {
+              onSave={async (formData) => {
                 try {
                   if (editRow) {
-                    await api.upsertRow('Directory', 'Serial', { ...editRow, ...data });
+                    await api.upsertRow(title, keyField, { ...editRow, ...formData });
                   } else {
-                    await api.createRow('Directory', data);
+                    await api.createRow(title, formData);
                   }
                   await onRefresh();
                   setShowAddModal(false);
@@ -629,663 +418,163 @@
                   showToast('Failed: ' + String(e), 'error');
                 }
               }}
+              chartOfAccounts={title === 'Transactions' ? window.chartOfAccounts : []}
             />
           )}
         </div>
       );
     }
 
-    function DirectoryModal({ row, onClose, onSave }) {
-      const [formData, setFormData] = useState(row || {
-        Name: '', Department: '', Gender: '', Manager: '', 'Resigned On': '', Active: 'Yes', Photo: ''
+    function GenericModal({ title, columns, row, editableFields, onClose, onSave, chartOfAccounts = [] }) {
+      const [formData, setFormData] = useState(() => {
+        if (row) return { ...row };
+        const initial = {};
+        columns.forEach(col => {
+          if (col === 'Date') initial[col] = new Date().toISOString().split('T')[0];
+          else if (col === 'Serial Number' && title === 'Documents') {
+            // Will be auto-generated
+          } else if (col === 'Active') initial[col] = 'Yes';
+          else if (col === 'Type' && title === 'Transactions') initial[col] = 'Credit';
+          else initial[col] = '';
+        });
+        return initial;
       });
 
-      return (
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold">{row ? 'Edit' : 'Add'} Employee</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={formData.Name || formData['Employee Name'] || ''}
-                    onChange={e => setFormData({...formData, Name: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                  <input
-                    type="text"
-                    value={formData.Department || formData.Designation || ''}
-                    onChange={e => setFormData({...formData, Department: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                  <select
-                    value={formData.Gender || ''}
-                    onChange={e => setFormData({...formData, Gender: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
-                  <input
-                    type="text"
-                    value={formData.Manager || ''}
-                    onChange={e => setFormData({...formData, Manager: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Resigned On</label>
-                  <input
-                    type="date"
-                    value={formData['Resigned On'] || ''}
-                    onChange={e => setFormData({...formData, 'Resigned On': e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Active</label>
-                  <select
-                    value={formData.Active || 'Yes'}
-                    onChange={e => setFormData({...formData, Active: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Photo URL</label>
-                  <input
-                    type="text"
-                    value={formData.Photo || ''}
-                    onChange={e => setFormData({...formData, Photo: e.target.value})}
-                    placeholder="Enter photo URL or use file input below"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={e => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = () => setFormData({...formData, Photo: reader.result});
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => onSave(formData)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Issues Page with restrictions
-    function IssuesPage({ data, isAdmin, onRefresh }) {
-      const [search, setSearch] = useState('');
-      const [editRow, setEditRow] = useState(null);
-
-      const stats = useMemo(() => {
-        const open = data.filter(i => (i.Status || 'Open').toLowerCase() === 'open').length;
-        const inProgress = data.filter(i => (i.Status || '').toLowerCase() === 'inprogress').length;
-        const resolved = data.filter(i => (i.Status || '').toLowerCase() === 'resolved').length;
-        
-        const ratings = data.filter(i => i['Feedback Rating']).map(i => Number(i['Feedback Rating']) || 0);
-        const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(1) : 0;
-        
-        return { open, inProgress, resolved, avgRating, total: data.length };
-      }, [data]);
-
-      const filtered = useMemo(() => {
-        if (!search.trim()) return data;
-        const q = search.toLowerCase();
-        return data.filter(r => 
-          Object.values(r).some(v => String(v).toLowerCase().includes(q))
-        );
-      }, [data, search]);
-
-      return (
-        <div className="space-y-6 fade-in">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Open</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">{stats.open}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.inProgress}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Resolved</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{stats.resolved}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Avg. Rating</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.avgRating} ⭐</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Issues ({filtered.length})</h2>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Redressal Remark</th>
-                    {isAdmin && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filtered.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{row['Tracking ID']}</td>
-                      <td className="px-4 py-3 text-sm">{row.Title || row.Description}</td>
-                      <td className="px-4 py-3">
-                        <span className={`status-badge status-${(row.Status || 'open').toLowerCase().replace(' ', '')}`}>
-                          {row.Status || 'Open'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">{row['Redressal Remark']}</td>
-                      {isAdmin && (
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => setEditRow(row)}
-                            className="text-blue-500 hover:text-blue-600 text-sm font-medium"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {editRow && (
-            <IssueModal
-              row={editRow}
-              onClose={() => setEditRow(null)}
-              onSave={async (data) => {
-                try {
-                  await api.upsertRow('Issues', 'Tracking ID', { ...editRow, ...data });
-                  await onRefresh();
-                  setEditRow(null);
-                  showToast('Updated successfully', 'success');
-                } catch (e) {
-                  showToast('Failed: ' + String(e), 'error');
-                }
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
-    function IssueModal({ row, onClose, onSave }) {
-      const [formData, setFormData] = useState({
-        Status: row.Status || 'Open',
-        'Redressal Remark': row['Redressal Remark'] || ''
-      });
-
-      return (
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold">Edit Issue - {row['Tracking ID']}</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={formData.Status}
-                  onChange={e => setFormData({...formData, Status: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="Open">Open</option>
-                  <option value="InProgress">In Progress</option>
-                  <option value="Resolved">Resolved</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Redressal Remark</label>
-                <textarea
-                  value={formData['Redressal Remark']}
-                  onChange={e => setFormData({...formData, 'Redressal Remark': e.target.value})}
-                  rows="4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => onSave(formData)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Notices Page with file attachment
-    function NoticesPage({ data, isAdmin, onRefresh }) {
-      const [search, setSearch] = useState('');
-      const [showAddModal, setShowAddModal] = useState(false);
-
-      const filtered = useMemo(() => {
-        if (!search.trim()) return data;
-        const q = search.toLowerCase();
-        return data.filter(r => 
-          Object.values(r).some(v => String(v).toLowerCase().includes(q))
-        );
-      }, [data, search]);
-
-      return (
-        <div className="space-y-6 fade-in">
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-xl font-semibold text-gray-900">Notices ({filtered.length})</h2>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowAddModal(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Media</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filtered.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{row.Date}</td>
-                      <td className="px-4 py-3 text-sm font-medium">{row.Subject}</td>
-                      <td className="px-4 py-3 text-sm">{row.Description}</td>
-                      <td className="px-4 py-3">
-                        {row.Media && (
-                          <a
-                            href={row.Media}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600 text-sm font-medium"
-                          >
-                            View File
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {showAddModal && (
-            <NoticeModal
-              onClose={() => setShowAddModal(false)}
-              onSave={async (data) => {
-                try {
-                  await api.createRow('Notices', data);
-                  await onRefresh();
-                  setShowAddModal(false);
-                  showToast('Notice added', 'success');
-                } catch (e) {
-                  showToast('Failed: ' + String(e), 'error');
-                }
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
-    function NoticeModal({ onClose, onSave }) {
-      const [formData, setFormData] = useState({
-        Date: new Date().toISOString().split('T')[0],
-        Subject: '',
-        Description: '',
-        Media: ''
-      });
-
-      return (
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold">Add Notice</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={formData.Date}
-                  onChange={e => setFormData({...formData, Date: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                <input
-                  type="text"
-                  value={formData.Subject}
-                  onChange={e => setFormData({...formData, Subject: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.Description}
-                  onChange={e => setFormData({...formData, Description: e.target.value})}
-                  rows="4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attach File</label>
-                <input
-                  type="file"
-                  onChange={e => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = () => setFormData({...formData, Media: reader.result});
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => onSave(formData)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Transactions Page with financial features
-    function TransactionsPage({ data, isAdmin, onRefresh, chartOfAccounts }) {
-      const [search, setSearch] = useState('');
-      const [showAddModal, setShowAddModal] = useState(false);
-
-      const stats = useMemo(() => {
-        const income = data.filter(t => (t.Type || '').toLowerCase() === 'credit').reduce((sum, t) => sum + Number(t.Amount || 0), 0);
-        const expense = data.filter(t => (t.Type || '').toLowerCase() === 'debit').reduce((sum, t) => sum + Number(t.Amount || 0), 0);
-        return { income, expense, profit: income - expense };
-      }, [data]);
-
-      const filtered = useMemo(() => {
-        if (!search.trim()) return data;
-        const q = search.toLowerCase();
-        return data.filter(r => 
-          Object.values(r).some(v => String(v).toLowerCase().includes(q))
-        );
-      }, [data, search]);
-
-      return (
-        <div className="space-y-6 fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Total Income</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{INR.format(stats.income)}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Total Expense</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">{INR.format(stats.expense)}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-xs text-gray-600">Net Profit/Loss</p>
-              <p className={`text-2xl font-bold mt-1 ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {INR.format(stats.profit)}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-xl font-semibold text-gray-900">Transactions ({filtered.length})</h2>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowAddModal(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filtered.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{row.Date}</td>
-                      <td className="px-4 py-3 text-sm">{row.Description}</td>
-                      <td className="px-4 py-3">
-                        <span className={`status-badge ${(row.Type || '').toLowerCase() === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {row.Type || 'Debit'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium">{INR.format(Number(row.Amount || 0))}</td>
-                      <td className="px-4 py-3 text-sm">{row.Category}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {showAddModal && (
-            <TransactionModal
-              chartOfAccounts={chartOfAccounts}
-              onClose={() => setShowAddModal(false)}
-              onSave={async (data) => {
-                try {
-                  await api.createRow('Transactions', data);
-                  await onRefresh();
-                  setShowAddModal(false);
-                  showToast('Transaction added', 'success');
-                } catch (e) {
-                  showToast('Failed: ' + String(e), 'error');
-                }
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
-    function TransactionModal({ chartOfAccounts, onClose, onSave }) {
-      const [formData, setFormData] = useState({
-        Date: new Date().toISOString().split('T')[0],
-        Description: '',
-        Type: 'Credit',
-        Amount: '',
-        Category: ''
-      });
+      const isFieldEditable = (col) => {
+        if (!row) return true; // All fields editable when adding new
+        if (editableFields.length === 0) return true; // No restrictions
+        return editableFields.includes(col);
+      };
 
       const categories = useMemo(() => {
+        if (title !== 'Transactions' || !chartOfAccounts.length) return [];
         return chartOfAccounts.filter(c => 
-          (c.Group || '').toLowerCase() === (formData.Type.toLowerCase() === 'credit' ? 'income' : 'expense')
+          (c.Group || '').toLowerCase() === (formData.Type === 'Credit' ? 'income' : 'expense')
         );
-      }, [chartOfAccounts, formData.Type]);
+      }, [chartOfAccounts, formData.Type, title]);
 
       return (
         <div className="modal-overlay" onClick={onClose}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold">Add Transaction</h3>
+              <h3 className="text-xl font-semibold">{row ? 'Edit' : 'Add'} {title}</h3>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={formData.Date}
-                    onChange={e => setFormData({...formData, Date: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                  <select
-                    value={formData.Type}
-                    onChange={e => setFormData({...formData, Type: e.target.value, Category: ''})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="Credit">Income (Credit)</option>
-                    <option value="Debit">Expense (Debit)</option>
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <input
-                    type="text"
-                    value={formData.Description}
-                    onChange={e => setFormData({...formData, Description: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-                  <input
-                    type="number"
-                    value={formData.Amount}
-                    onChange={e => setFormData({...formData, Amount: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={formData.Category}
-                    onChange={e => setFormData({...formData, Category: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((cat, i) => (
-                      <option key={i} value={cat.Category}>{cat.Category}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {columns.map(col => {
+                  if (col === 'Serial Number' && title === 'Documents' && !row) return null;
+                  if (!isFieldEditable(col) && row) return null;
+                  
+                  return (
+                    <div key={col} className={col === 'Description' || col === 'Redressal Remark' ? 'md:col-span-2' : ''}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{col}</label>
+                      
+                      {col === 'Gender' ? (
+                        <select
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">Select</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      ) : col === 'Active' ? (
+                        <select
+                          value={formData[col] || 'Yes'}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      ) : col === 'Status' && title === 'Issues' ? (
+                        <select
+                          value={formData[col] || 'Open'}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="Open">Open</option>
+                          <option value="InProgress">In Progress</option>
+                          <option value="Resolved">Resolved</option>
+                        </select>
+                      ) : col === 'Type' && title === 'Transactions' ? (
+                        <select
+                          value={formData[col] || 'Credit'}
+                          onChange={e => setFormData({...formData, [col]: e.target.value, Category: ''})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="Credit">Income (Credit)</option>
+                          <option value="Debit">Expense (Debit)</option>
+                        </select>
+                      ) : col === 'Category' && title === 'Transactions' && categories.length > 0 ? (
+                        <select
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">Select Category</option>
+                          {categories.map((cat, i) => (
+                            <option key={i} value={cat.Category}>{cat.Category}</option>
+                          ))}
+                        </select>
+                      ) : col.toLowerCase().includes('date') || col === 'Resigned On' ? (
+                        <input
+                          type="date"
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      ) : col === 'Photo' || col === 'Media' ? (
+                        <div>
+                          <input
+                            type="text"
+                            value={formData[col] || ''}
+                            onChange={e => setFormData({...formData, [col]: e.target.value})}
+                            placeholder="Enter URL or use file input below"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
+                          />
+                          <input
+                            type="file"
+                            accept={col === 'Photo' ? "image/*" : "*"}
+                            onChange={e => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => setFormData({...formData, [col]: reader.result});
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                        </div>
+                      ) : col === 'Description' || col === 'Redressal Remark' ? (
+                        <textarea
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          rows="3"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      ) : col === 'Amount' ? (
+                        <input
+                          type="number"
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={formData[col] || ''}
+                          onChange={e => setFormData({...formData, [col]: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          readOnly={!isFieldEditable(col) && row}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
@@ -1307,257 +596,76 @@
       );
     }
 
-    // Documents Page with auto serial
-    function DocumentsPage({ data, isAdmin, onRefresh }) {
-      const [search, setSearch] = useState('');
-      const [showAddModal, setShowAddModal] = useState(false);
-
-      const filtered = useMemo(() => {
-        if (!search.trim()) return data;
-        const q = search.toLowerCase();
-        return data.filter(r => 
-          Object.values(r).some(v => String(v).toLowerCase().includes(q))
+    // Financial pages with admin restriction
+    function FinancialPage({ title, data, isAdmin, chartOfAccounts }) {
+      if (!isAdmin) {
+        return (
+          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h3>
+            <p className="text-gray-600">Only administrators can view financial data.</p>
+          </div>
         );
-      }, [data, search]);
+      }
 
-      const nextSerial = useMemo(() => {
-        const serials = data.map(d => Number(d['Serial Number']) || 0);
-        return serials.length ? Math.max(...serials) + 1 : 1;
-      }, [data]);
+      const stats = useMemo(() => {
+        if (title === 'Transactions') {
+          const income = data.filter(t => (t.Type || '').toLowerCase() === 'credit').reduce((sum, t) => sum + Number(t.Amount || 0), 0);
+          const expense = data.filter(t => (t.Type || '').toLowerCase() === 'debit').reduce((sum, t) => sum + Number(t.Amount || 0), 0);
+          return { income, expense, profit: income - expense };
+        } else if (title === 'OpeningBalances') {
+          const total = data.reduce((sum, d) => sum + Number(d.Balance || 0), 0);
+          return { total, count: data.length };
+        }
+        return null;
+      }, [data, title]);
 
       return (
         <div className="space-y-6 fade-in">
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-xl font-semibold text-gray-900">Documents ({filtered.length})</h2>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowAddModal(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </button>
-                  )}
-                </div>
+          {stats && title === 'Transactions' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Total Income</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{INR.format(stats.income)}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Total Expense</p>
+                <p className="text-2xl font-bold text-red-600 mt-1">{INR.format(stats.expense)}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Net Profit/Loss</p>
+                <p className={`text-2xl font-bold mt-1 ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {INR.format(stats.profit)}
+                </p>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Media</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filtered.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium">{row['Serial Number']}</td>
-                      <td className="px-4 py-3 text-sm">{row.Title}</td>
-                      <td className="px-4 py-3 text-sm">{row.Date}</td>
-                      <td className="px-4 py-3 text-sm">{row.Description}</td>
-                      <td className="px-4 py-3">
-                        {row.Media && (
-                          <a
-                            href={row.Media}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-1"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {showAddModal && (
-            <DocumentModal
-              nextSerial={nextSerial}
-              onClose={() => setShowAddModal(false)}
-              onSave={async (data) => {
-                try {
-                  await api.createRow('Documents', data);
-                  await onRefresh();
-                  setShowAddModal(false);
-                  showToast('Document added', 'success');
-                } catch (e) {
-                  showToast('Failed: ' + String(e), 'error');
-                }
-              }}
-            />
           )}
-        </div>
-      );
-    }
 
-    function DocumentModal({ nextSerial, onClose, onSave }) {
-      const [formData, setFormData] = useState({
-        'Serial Number': nextSerial,
-        Title: '',
-        Date: new Date().toISOString().split('T')[0],
-        Description: '',
-        Media: ''
-      });
-
-      return (
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold">Add Document</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">Auto Serial Number: <span className="font-bold">#{nextSerial}</span></p>
+          {stats && title === 'OpeningBalances' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Total Accounts</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.count}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                <input
-                  type="text"
-                  value={formData.Title}
-                  onChange={e => setFormData({...formData, Title: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={formData.Date}
-                  onChange={e => setFormData({...formData, Date: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.Description}
-                  onChange={e => setFormData({...formData, Description: e.target.value})}
-                  rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attach File</label>
-                <input
-                  type="file"
-                  onChange={e => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = () => setFormData({...formData, Media: reader.result});
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Total Balance</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{INR.format(stats.total)}</p>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => onSave(formData)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
+          )}
 
-    // Generic table for other pages
-    function GenericTable({ title, data, onRefresh, isAdmin }) {
-      const [search, setSearch] = useState('');
-
-      const filtered = useMemo(() => {
-        if (!search.trim()) return data;
-        const q = search.toLowerCase();
-        return data.filter(r => 
-          Object.values(r).some(v => String(v).toLowerCase().includes(q))
-        );
-      }, [data, search]);
-
-      const columns = useMemo(() => {
-        if (!data.length) return [];
-        return Object.keys(data[0]);
-      }, [data]);
-
-      return (
-        <div className="bg-white rounded-2xl shadow-sm fade-in">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">{title} ({filtered.length})</h2>
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search..."
-                className="px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {columns.map(col => (
-                    <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filtered.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    {columns.map(col => (
-                      <td key={col} className="px-4 py-3 text-sm">
-                        {String(row[col] || '')}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            {filtered.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No data found
-              </div>
-            )}
-          </div>
+          <DataTablePage 
+            title={title} 
+            data={data} 
+            isAdmin={isAdmin} 
+            onRefresh={() => window.location.reload()}
+            allowAdd={title === 'Transactions'}
+            allowEdit={title === 'Transactions'}
+            editableFields={[]}
+            keyField={title === 'Transactions' ? 'ID' : title === 'OpeningBalances' ? 'Account' : 'Code'}
+          />
         </div>
       );
     }
@@ -1618,7 +726,7 @@
             api.list.ChartOfAccounts()
           ]);
           
-          setData({
+          const newData = {
             Directory: results[0]?.rows || [],
             Notices: results[1]?.rows || [],
             Issues: results[2]?.rows || [],
@@ -1627,7 +735,10 @@
             Voters: results[5]?.rows || [],
             OpeningBalances: results[6]?.rows || [],
             ChartOfAccounts: results[7]?.rows || []
-          });
+          };
+          
+          setData(newData);
+          window.chartOfAccounts = newData.ChartOfAccounts;
         } catch (e) {
           showToast('Failed to load data', 'error');
         } finally {
@@ -1642,13 +753,15 @@
       const isAdmin = session.role === 'admin';
 
       const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-        { id: 'Directory', label: 'Directory', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-        { id: 'Notices', label: 'Notices', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
-        { id: 'Issues', label: 'Issues', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-        { id: 'Transactions', label: 'Transactions', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-        { id: 'Documents', label: 'Documents', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-        { id: 'Voters', label: 'Voters', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', show: true },
+        { id: 'Directory', label: 'Directory', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', show: true },
+        { id: 'Notices', label: 'Notices', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', show: true },
+        { id: 'Issues', label: 'Issues', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', show: true },
+        { id: 'Transactions', label: 'Transactions', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', show: isAdmin },
+        { id: 'Documents', label: 'Documents', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', show: true },
+        { id: 'Voters', label: 'Voters', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', show: true },
+        { id: 'OpeningBalances', label: 'Opening Balances', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', show: isAdmin },
+        { id: 'ChartOfAccounts', label: 'Chart of Accounts', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', show: isAdmin },
       ];
 
       return (
@@ -1721,9 +834,9 @@
           </header>
 
           <div className="flex">
-            <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-16 left-0 z-20 w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 transition-transform duration-300`}>
+            <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-16 left-0 z-20 w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 transition-transform duration-300 overflow-y-auto`}>
               <nav className="p-4 space-y-1">
-                {navItems.map(item => (
+                {navItems.filter(item => item.show).map(item => (
                   <button
                     key={item.id}
                     onClick={() => { setView(item.id); setSidebarOpen(false); }}
@@ -1751,21 +864,80 @@
                   <div className="spinner" />
                 </div>
               ) : view === 'dashboard' ? (
-                <Dashboard data={data} onNavigate={setView} />
+                <Dashboard data={data} onNavigate={setView} isAdmin={isAdmin} />
               ) : view === 'Directory' ? (
-                <DirectoryPage data={data.Directory} isAdmin={isAdmin} onRefresh={refreshData} />
+                <DataTablePage 
+                  title="Directory" 
+                  data={data.Directory} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={true}
+                  allowEdit={true}
+                  editableFields={[]}
+                  keyField="Serial"
+                />
               ) : view === 'Issues' ? (
-                <IssuesPage data={data.Issues} isAdmin={isAdmin} onRefresh={refreshData} />
+                <DataTablePage 
+                  title="Issues" 
+                  data={data.Issues} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={false}
+                  allowEdit={true}
+                  editableFields={['Status', 'Redressal Remark']}
+                  keyField="Tracking ID"
+                />
               ) : view === 'Notices' ? (
-                <NoticesPage data={data.Notices} isAdmin={isAdmin} onRefresh={refreshData} />
-              ) : view === 'Transactions' ? (
-                <TransactionsPage data={data.Transactions} isAdmin={isAdmin} onRefresh={refreshData} chartOfAccounts={data.ChartOfAccounts} />
+                <DataTablePage 
+                  title="Notices" 
+                  data={data.Notices} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={true}
+                  allowEdit={false}
+                  editableFields={[]}
+                  keyField="Serial Number"
+                />
               ) : view === 'Documents' ? (
-                <DocumentsPage data={data.Documents} isAdmin={isAdmin} onRefresh={refreshData} />
+                <DataTablePage 
+                  title="Documents" 
+                  data={data.Documents} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={true}
+                  allowEdit={false}
+                  editableFields={[]}
+                  keyField="Serial Number"
+                />
               ) : view === 'Voters' ? (
-                <GenericTable title="Voters" data={data.Voters} isAdmin={isAdmin} onRefresh={refreshData} />
+                <DataTablePage 
+                  title="Voters" 
+                  data={data.Voters} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={true}
+                  allowEdit={true}
+                  editableFields={[]}
+                  keyField="Serial Number"
+                />
+              ) : view === 'Transactions' || view === 'OpeningBalances' || view === 'ChartOfAccounts' ? (
+                <FinancialPage 
+                  title={view} 
+                  data={data[view]} 
+                  isAdmin={isAdmin}
+                  chartOfAccounts={data.ChartOfAccounts}
+                />
               ) : (
-                <GenericTable title={view} data={data[view]} isAdmin={isAdmin} onRefresh={refreshData} />
+                <DataTablePage 
+                  title={view} 
+                  data={data[view]} 
+                  isAdmin={isAdmin} 
+                  onRefresh={refreshData}
+                  allowAdd={true}
+                  allowEdit={false}
+                  editableFields={[]}
+                  keyField="ID"
+                />
               )}
             </main>
           </div>
@@ -1776,4 +948,305 @@
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
-</html>
+</html>red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading && <div className="spinner" />}
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setUsername('demo'); setPassword('demo'); }}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
+                >
+                  Use Demo Account
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Dashboard({ data, onNavigate, isAdmin }) {
+      const stats = useMemo(() => {
+        const openIssues = data.Issues.filter(i => (i.Status || '').toLowerCase() !== 'resolved').length;
+        const totalResidents = data.Directory.length;
+        const collected = isAdmin ? data.Transactions
+          .filter(t => (t.Type || '').toLowerCase() === 'credit')
+          .reduce((sum, t) => sum + Number(t.Amount || 0), 0) : 0;
+        const expenses = isAdmin ? data.Transactions
+          .filter(t => (t.Type || '').toLowerCase() === 'debit')
+          .reduce((sum, t) => sum + Number(t.Amount || 0), 0) : 0;
+        
+        return { openIssues, totalResidents, collected, expenses };
+      }, [data, isAdmin]);
+
+      return (
+        <div className="space-y-6 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div 
+              onClick={() => onNavigate('Directory')}
+              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Total Residents</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalResidents}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => onNavigate('Issues')}
+              className="bg-white rounded-2xl p-6 shadow-sm card-hover"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Open Issues</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.openIssues}</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <>
+                <div 
+                  onClick={() => onNavigate('Transactions')}
+                  className="bg-white rounded-2xl p-6 shadow-sm card-hover"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm font-medium">Collected</p>
+                      <p className="text-3xl font-bold text-green-600 mt-2">{INR.format(stats.collected)}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => onNavigate('Transactions')}
+                  className="bg-white rounded-2xl p-6 shadow-sm card-hover"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm font-medium">Expenses</p>
+                      <p className="text-3xl font-bold text-red-600 mt-2">{INR.format(stats.expenses)}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Notices</h3>
+                <button
+                  onClick={() => onNavigate('Notices')}
+                  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+                >
+                  View All →
+                </button>
+              </div>
+              <div className="space-y-3">
+                {data.Notices.slice(0, 5).map((notice, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => onNavigate('Notices')}
+                    className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{notice.Subject}</p>
+                      <p className="text-xs text-gray-500 mt-1">{notice.Date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Issues</h3>
+                <button
+                  onClick={() => onNavigate('Issues')}
+                  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+                >
+                  View All →
+                </button>
+              </div>
+              <div className="space-y-3">
+                {data.Issues.slice(0, 5).map((issue, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => onNavigate('Issues')}
+                    className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{issue.Title || issue.Description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`status-badge status-${(issue.Status || 'open').toLowerCase().replace(' ', '')}`}>
+                          {issue.Status || 'Open'}
+                        </span>
+                        <span className="text-xs text-gray-500">{issue['Tracking ID']}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Generic Data Table with all columns visible
+    function DataTablePage({ title, data, isAdmin, onRefresh, allowAdd = true, allowEdit = false, editableFields = [], keyField = 'ID' }) {
+      const [search, setSearch] = useState('');
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [editRow, setEditRow] = useState(null);
+      const [activeFilter, setActiveFilter] = useState('all');
+
+      const columns = useMemo(() => {
+        if (!data.length) return [];
+        return Object.keys(data[0]);
+      }, [data]);
+
+      const filtered = useMemo(() => {
+        let result = data;
+        
+        if (title === 'Directory') {
+          if (activeFilter === 'active') {
+            result = result.filter(r => (r.Active || '').toLowerCase() === 'yes');
+          } else if (activeFilter === 'inactive') {
+            result = result.filter(r => (r.Active || '').toLowerCase() === 'no');
+          }
+        }
+        
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          result = result.filter(r => 
+            Object.values(r).some(v => String(v).toLowerCase().includes(q))
+          );
+        }
+        
+        return result;
+      }, [data, search, activeFilter, title]);
+
+      const stats = useMemo(() => {
+        if (title === 'Directory') {
+          const deptStats = {};
+          data.forEach(r => {
+            const dept = r.Department || r.Designation || 'Other';
+            if (!deptStats[dept]) deptStats[dept] = 0;
+            if ((r.Active || '').toLowerCase() === 'yes') deptStats[dept]++;
+          });
+          return { type: 'departments', data: Object.entries(deptStats).sort((a, b) => b[1] - a[1]) };
+        } else if (title === 'Issues') {
+          const open = data.filter(i => (i.Status || 'Open').toLowerCase() === 'open').length;
+          const inProgress = data.filter(i => (i.Status || '').toLowerCase() === 'inprogress').length;
+          const resolved = data.filter(i => (i.Status || '').toLowerCase() === 'resolved').length;
+          const ratings = data.filter(i => i['Feedback Rating']).map(i => Number(i['Feedback Rating']) || 0);
+          const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(1) : 0;
+          return { type: 'issues', data: { open, inProgress, resolved, avgRating } };
+        } else if (title === 'Notices') {
+          const thisMonth = data.filter(n => {
+            const d = new Date(n.Date);
+            const now = new Date();
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          }).length;
+          return { type: 'notices', data: { total: data.length, thisMonth } };
+        } else if (title === 'Documents') {
+          return { type: 'documents', data: { total: data.length } };
+        } else if (title === 'Voters') {
+          return { type: 'voters', data: { total: data.length } };
+        }
+        return null;
+      }, [data, title]);
+
+      return (
+        <div className="space-y-6 fade-in">
+          {title === 'Directory' && (
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => setActiveFilter('all')}
+                  className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'all' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  All ({data.length})
+                </button>
+                <button
+                  onClick={() => setActiveFilter('active')}
+                  className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'active' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Active
+                </button>
+                <button
+                  onClick={() => setActiveFilter('inactive')}
+                  className={`filter-btn px-4 py-2 rounded-lg font-medium ${activeFilter === 'inactive' ? 'active' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Non-Active
+                </button>
+              </div>
+            </div>
+          )}
+
+          {stats && stats.type === 'departments' && stats.data.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {stats.data.map(([dept, count]) => (
+                <div key={dept} className="bg-white rounded-xl p-4 shadow-sm">
+                  <p className="text-xs text-gray-600 truncate" title={dept}>{dept}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{count}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {stats && stats.type === 'issues' && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Open</p>
+                <p className="text-2xl font-bold text-orange-600 mt-1">{stats.data.open}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">In Progress</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.data.inProgress}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-600">Resolved</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{stats.data.resolved}</p>
+              </div>
+              <div className="bg-
